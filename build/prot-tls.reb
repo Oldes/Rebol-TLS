@@ -512,28 +512,29 @@ prf: function [
 ]
 TLS-key-expansion: func [
     ctx [object!]
-    /local rnd1 rnd2 key-expansion sha len
+    /local rnd1 rnd2 key-expansion sha
     derived_secret empty_hash hello_hash early_secret
     handshake_secret client_secret server_secret
 ] [
     with ctx [
-        sha: ctx/sha-port/spec/method
+        sha: ctx/hash-type
         log-debug ["===================TLS-key-expansion" sha]
         either TLS13? [
             unless derived_secret: derived-secrets/:sha [
                 empty-hash/:sha: checksum #{} :sha
-                early_secret: HKDF-Extract :sha #{} append/dup clear #{} 0 len: length? empty-hash/:sha
+                zero-keys/:sha: append/dup clear #{} 0 :mac-size
+                early_secret: HKDF-Extract :sha #{} zero-keys/:sha
+                derived-secrets/:sha:
                 derived_secret: HKDF-Expand/label :sha early_secret empty-hash/:sha mac-size "derived"
-                zero-keys/:sha: append/dup #{} 0 len
             ]
             hello_hash: get-transcript-hash ctx _
             handshake-secret: HKDF-Extract :sha derived_secret :pre-secret
             either server? [
-                locale-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash len "s hs traffic"
-                remote-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash len "c hs traffic"
+                locale-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash mac-size "s hs traffic"
+                remote-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash mac-size "c hs traffic"
             ] [
-                locale-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash len "c hs traffic"
-                remote-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash len "s hs traffic"
+                locale-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash mac-size "c hs traffic"
+                remote-hs-secret: HKDF-Expand/label :sha handshake-secret hello_hash mac-size "s hs traffic"
             ]
             locale-hs-key: HKDF-Expand/label :sha locale-hs-secret #{} crypt-size "key"
             remote-hs-key: HKDF-Expand/label :sha remote-hs-secret #{} crypt-size "key"

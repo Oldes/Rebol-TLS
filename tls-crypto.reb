@@ -93,34 +93,36 @@ prf: function [
 TLS-key-expansion: func [
     ;; Runs the TLS key schedule to derive handshake and traffic secrets, keys, and IVs for the TLS connection.
     ctx [object!]
-    /local rnd1 rnd2 key-expansion sha len
+    /local rnd1 rnd2 key-expansion sha
     derived_secret empty_hash hello_hash early_secret
     handshake_secret client_secret server_secret
 ][
     with ctx [
-        sha: ctx/sha-port/spec/method
+        sha: ctx/hash-type
         log-debug ["===================TLS-key-expansion" sha]
         ;-- make all secure data
         either TLS13? [
             ;- TLS1.3
             unless derived_secret: derived-secrets/:sha [
+                ;; If we haven't yet derived this hash's secret, initialize necessary values.
                 empty-hash/:sha: checksum #{} :sha
-                early_secret:  HKDF-Extract :sha #{} append/dup clear #{} 0 len: length? empty-hash/:sha
-                ;derived-secrets/:sha:
+                zero-keys/:sha: append/dup clear #{} 0 :mac-size
+                early_secret:  HKDF-Extract :sha #{} zero-keys/:sha
+                ;; Compute the 'derived' secret using HKDF-Expand-Label, providing separation
+                ;; between different phases of the key schedule. ('mac-size' is the digest size.)
+                ;; This value is a well-known intermediate value in the TLS 1.3 key derivation path.
+                derived-secrets/:sha:
                 derived_secret: HKDF-Expand/label :sha early_secret empty-hash/:sha mac-size "derived"
-                ;; zero-key will be needed in the FINISHED record
-                zero-keys/:sha: append/dup #{} 0 len
             ]
-            ;? len ? mac-size
             hello_hash: get-transcript-hash ctx _
             handshake-secret: HKDF-Extract      :sha derived_secret :pre-secret
             ;? handshake-secret
             either server? [
-                locale-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash len "s hs traffic"
-                remote-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash len "c hs traffic"
+                locale-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash mac-size "s hs traffic"
+                remote-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash mac-size "c hs traffic"
             ][
-                locale-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash len "c hs traffic"
-                remote-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash len "s hs traffic"
+                locale-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash mac-size "c hs traffic"
+                remote-hs-secret:  HKDF-Expand/label :sha handshake-secret hello_hash mac-size "s hs traffic"
             ]
             locale-hs-key:     HKDF-Expand/label :sha locale-hs-secret #{} crypt-size "key"
             remote-hs-key:     HKDF-Expand/label :sha remote-hs-secret #{} crypt-size "key"

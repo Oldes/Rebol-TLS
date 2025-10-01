@@ -98,9 +98,10 @@ TLS-context: context [
         none
 ]
 
-derived-secrets: make map! []
-zero-keys:       make map! []
-empty-hash:      make map! []
+;; Maps for storing reusable key schedule constants per hash algorithm:
+derived-secrets: make map! [] ;; cache for key schedule 'derived' secrets (RFC 8446)
+zero-keys:       make map! [] ;; precomputed all-zero binary blocks for Finished MAC etc.
+empty-hash:      make map! [] ;; hash of the empty string for each hash algorithm
 
 
 
