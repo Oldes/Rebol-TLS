@@ -1,7 +1,7 @@
 Rebol [
-    Title: "TLS Context Object Definition"
-    SPDX-License-Identifier: Apache-2.0
-    File: %tls-init.reb
+    title: "TLS Context Object Definition"
+    file:  %tls-context.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 TLS-context: context [

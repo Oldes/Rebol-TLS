@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Cryptographic Functions"
-    SPDX-License-Identifier: Apache-2.0
-    file: %tls-crypto.reb
+    file:  %tls-crypto.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 

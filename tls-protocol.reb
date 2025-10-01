@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Handshake messages and parsing"
     file:  %tls-protocol.reb
-    SPDX-License-Identifier: Apache-2.0
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 TLS-update-messages-hash: func [

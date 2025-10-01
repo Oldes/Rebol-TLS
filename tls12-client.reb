@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS v1.2 Client Functions"
-    SPDX-License-Identifier: Apache-2.0
-    file: %tls12-client.reb
+    file:  %tls12-client.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 decode-server-key-exchange: function [

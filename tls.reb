@@ -1,10 +1,10 @@
 Rebol [
     title: "TLS Protocol"
-    SPDX-License-Identifier: Apache-2
+    file: %tls-prot.reb
     name:  tls
     type:  module
     author: "Oldes"
-    file: %tls-prot.reb
+    license: MIT ;= SPDX-License-Identifier
     home: https://github.com/Oldes/Rebol-TLS
     Version: 0.10.0
     Date: 30-Sep-2025

@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Scheme Implementation"
-    SPDX-License-Identifier: Apache-2.0
-    file: %tls-scheme.reb
+    file:  %tls-scheme.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 ; Port operations

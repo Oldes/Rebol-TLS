@@ -1,7 +1,7 @@
 Rebol [
-    title: "TLS Server  Implementation"
-    SPDX-License-Identifier: Apache-2.0
-    file: %tls-server.reb
+    title: "TLS Server Implementation"
+    file:  %tls-server.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 TLS-server-awake: func [

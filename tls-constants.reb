@@ -1,6 +1,7 @@
 Rebol [
-    Title: "TLS Protocol Constants and Enumerations"
-    SPDX-License-Identifier: Apache-2.0
+    title: "TLS Protocol Constants and Enumerations"
+    file:  %tls-constants.reb
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 

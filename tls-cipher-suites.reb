@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Cipher Suite Configuration"
     file:  %tls-cipher-suites.reb
-    SPDX-License-Identifier: Apache-2.0
+    license: MIT ;= SPDX-License-Identifier
 ]
 
 ;-- list of supported suites as a single binary
