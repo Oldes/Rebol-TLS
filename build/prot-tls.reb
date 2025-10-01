@@ -6,7 +6,7 @@ REBOL [
     date: 30-Sep-2025
     file: %tls-prot.reb
     author: "Oldes"
-    SPDX-License-Identifier: Apache-2
+    license: MIT
     home: https://github.com/Oldes/Rebol-TLS
 ]
 comment "## Include: %tls-context.reb"
@@ -377,6 +377,13 @@ signature-hash-methods: make map! [
     rsa_pkcs1_sha512: sha512
 ]
 HRR-magic: #{CF21AD74E59A6111BE1D8C021E65B891C2A211167ABB8C5E079E09E2C8A8339C}
+server-certificate-verify-context: rejoin [
+    #{
+2020202020202020202020202020202020202020202020202020202020202020
+2020202020202020202020202020202020202020202020202020202020202020
+}
+    "TLS 1.3, server CertificateVerify^@"
+]
 comment "-- End of:  %tls-constants.reb"
 comment "## Include: %tls-utils.reb"
 comment {## Title:   "TLS Utility Functions"}
@@ -888,11 +895,7 @@ decode-certificate-verify: function [
     log-debug ["Verify certificate using type:^[[1m" *SignatureAlgorithm/name signature-type]
     if signature-type == 2052 [
         to-sign: rejoin [
-            #{
-2020202020202020202020202020202020202020202020202020202020202020
-2020202020202020202020202020202020202020202020202020202020202020
-}
-            "TLS 1.3, server CertificateVerify^@"
+            server-certificate-verify-context
             get-transcript-hash ctx 'CERTIFICATE
         ]
         key: rsa-init ctx/pub-key ctx/pub-exp
@@ -1837,7 +1840,7 @@ prepare-client-key-exchange: function [
 ]
 comment "-- End of:  %tls12-client.reb"
 comment "## Include: %tls-server.reb"
-comment {## Title:   "TLS Server  Implementation"}
+comment {## Title:   "TLS Server Implementation"}
 TLS-server-awake: func [
     event [event!]
     /local port info serv
@@ -2044,11 +2047,7 @@ prepare-server-certificate: function [
         if TLS13? [
             change-state ctx 'CERTIFICATE_VERIFY
             to-sign: rejoin [
-                #{
-2020202020202020202020202020202020202020202020202020202020202020
-2020202020202020202020202020202020202020202020202020202020202020
-}
-                "TLS 1.3, server CertificateVerify^@"
+                server-certificate-verify-context
                 get-transcript-hash ctx 'CERTIFICATE
             ]
             signature: rsa/sign/pss tls-port/state/private-key :to-sign

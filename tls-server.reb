@@ -267,9 +267,7 @@ prepare-server-certificate: function [
         if TLS13? [
             change-state ctx 'CERTIFICATE_VERIFY
             to-sign: rejoin [
-                #{2020202020202020202020202020202020202020202020202020202020202020
-                  2020202020202020202020202020202020202020202020202020202020202020}
-                "TLS 1.3, server CertificateVerify^@"
+                server-certificate-verify-context
                 ;; Get hash of handshake messages (Client Hello .. Certificate)
                 get-transcript-hash ctx 'CERTIFICATE
             ]

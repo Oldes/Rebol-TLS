@@ -14,7 +14,6 @@ decode-server-key-exchange: function [
     switch ctx/key-method [
         ECDHE_RSA
         ECDHE_ECDSA [
-            ;? msg/buffer
             try/with [
                 binary/read msg [
                     ECCurveType: UI8  
@@ -29,8 +28,6 @@ decode-server-key-exchange: function [
             if any [
                 3 <> ECCurveType
                 none? curve: *EllipticCurves/name ECCurve
-                ;4 <> first pub_key
-                
             ][
                 log-error ["Unsupported ECurve type:" ECCurveType ECCurve ]
                 cause-TLS-error critical-error: 'User_cancelled
@@ -78,7 +75,6 @@ decode-server-key-exchange: function [
             ;@@ TODO: rewrite ecdsa/verify to count the hash automatically like it is in rsa/verify now?
             message-hash: checksum verify-data hash-algorithm
             ; test validity:
-            ;? ctx/pub-exp
             ecdsa/verify/curve ctx/pub-key message-hash signature ctx/pub-exp
         ]
         rsaEncryption [

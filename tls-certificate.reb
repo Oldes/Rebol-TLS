@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Certificate Functions"
+    file:  %tls-certificate.reb
     license: MIT ;= SPDX-License-Identifier
-    file: %tls-certificate.reb
 ]
 
 decode-certificates: function [
@@ -21,22 +21,18 @@ decode-certificates: function [
         cause-TLS-error 'Handshake_failure
     ]
     
-    ;i: 0
     while [3 < length? msg/buffer][
         cert: binary/read msg 'UI24BYTES
         if ctx/TLS13? [
            cert-extensions: binary/read msg 'UI16BYTES
            ;? cert-extensions
         ]
-        ;i: i + 1 write rejoin [%/x/cert i %.crt] cert
         append ctx/server-certs cert: attempt [decode 'CRT cert]
-        ;? cert
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
     ]
     log-more ["Received" length? ctx/server-certs "server certificates."]
     ;? ctx/server-certs
     try/with [
-        ;?? ctx/server-certs/1
         key: ctx/server-certs/1/public-key
         switch key/1 [
             ecPublicKey [
@@ -81,9 +77,7 @@ decode-certificate-verify: function [
     ;?? ctx/context-messages
     if signature-type == 0#0804 [
         to-sign: rejoin [
-            #{2020202020202020202020202020202020202020202020202020202020202020
-              2020202020202020202020202020202020202020202020202020202020202020}
-            "TLS 1.3, server CertificateVerify^@"
+            server-certificate-verify-context
             ;; Get hash of handshake messages (Client Hello .. Certificate)
             get-transcript-hash ctx 'CERTIFICATE
         ]
