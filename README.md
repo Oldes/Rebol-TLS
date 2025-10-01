@@ -13,7 +13,7 @@ This repository contains the source code split into multiple parts for better ma
 -   `tls-protocol.reb`: Implements the core TLS handshake protocol logic.
 -   `tls-client.reb`: Client-side specific handshake logic and state management for TLS.
 -   `tls-server.reb`: Server-side specific handshake logic and state management for TLS.
--   `tls-crypto.reb`: Wrappers or interfaces to cryptographic primitives (hashing, HMAC, AEAD encryption, key exchange).
+-   `tls-crypto.reb`: Interfaces to cryptographic primitives (hashing, HMAC, AEAD encryption, key exchange).
 -   `tls-cipher-suites.reb`: Definitions and handling of supported TLS cipher suites.
 -   `tls-certificate.reb`: Functions for parsing and handling X.509 certificates.
 -   `tls-context.reb`: Manages the context or state of a TLS connection (keys, sequence numbers, etc.).
@@ -113,3 +113,4 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 [4]: https://github.com/Oldes/Rebol-TLS/blob/main/legacy/prot-tls12.reb "TLS Protocol used in version prior Rebol 3.20.0"
 [5]: https://datatracker.ietf.org/doc/html/rfc8446 "RFC 8446 - The Transport Layer Security (TLS) Protocol Version 1.3"
 [6]: https://github.com/Oldes/Rebol-HTTPd "Rebol HTTP server"
+
