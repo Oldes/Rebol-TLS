@@ -114,3 +114,5 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 [5]: https://datatracker.ietf.org/doc/html/rfc8446 "RFC 8446 - The Transport Layer Security (TLS) Protocol Version 1.3"
 [6]: https://github.com/Oldes/Rebol-HTTPd "Rebol HTTP server"
 
+
+<img width="2878" height="1704" alt="tls" src="https://github.com/user-attachments/assets/b0f2c9d9-1d45-4cd9-932b-69c750bc174d" />
