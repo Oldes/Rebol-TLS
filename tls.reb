@@ -9,7 +9,7 @@ Rebol [
     Version: 0.10.1
     Date:    02-Oct-2025
 ]
-try [_: #(none)] ;; backward compatibility
+try [do "_: #(none)"] ;; backward compatibility
 #include %tls-context.reb
 #include %tls-constants.reb
 #include %tls-utils.reb

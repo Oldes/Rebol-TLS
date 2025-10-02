@@ -9,7 +9,7 @@ REBOL [
     License: MIT
     Home: https://github.com/Oldes/Rebol-TLS
 ]
-try [_: none]
+try [do "_: #(none)"]
 comment "## Include: %tls-context.reb"
 comment {## Title:   "TLS Context Object Definition"}
 TLS-context: context [
