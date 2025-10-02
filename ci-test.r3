@@ -26,6 +26,7 @@ foreach url [
 	https://google.com
 	https://rosettacode.org/wiki/Rosetta_Code ;= supports only TLS1.3
 	https://www.rebol.com
+	https://codeberg.org ;= sends NEW_SESSION_TICKET in the same fragment like FINISHED
 ][
 	print-horizontal-line
 	print [as-yellow "Trying to read:" as-green url]
@@ -37,7 +38,7 @@ foreach url [
 		print-horizontal-line
 		print "^/^/"
 	][
-		sys/log/error 'TEST err: system/state/last-error
+		sys/log/error 'TEST err: copy system/state/last-error
 		repend fails [url err] 
 	]
 ]
