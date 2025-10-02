@@ -519,14 +519,11 @@ prepare-finished-message: function [
             ]
             prepare-wrapped-record ctx plain 0#16
 
-            switch-to-app-keys ctx
+            switch-to-app-encrypt ctx
             protocol: 'APPLICATION
-            seq-write: 0
-            ;seq-read: 0
         ]
     ][
         change-state ctx 'FINISHED
-        ;ctx/seq-write: 0
 
         seed: get-transcript-hash ctx _ ;read ctx/sha-port
 

@@ -45,7 +45,7 @@ TLS-server-client-awake: function [
     TCP-port: event/port
     ;? TCP-port
     ctx: TCP-port/extra
-    log-debug ["!!!!!!!!!!!!!!!!!!!!!!!!!Server's client awake event:" event/type "state:" ctx/state ctx/server?]
+    log-debug ["Server's client awake event:" event/type "state:" ctx/state ctx/server?]
     switch event/type [
         read [
             error: try [
@@ -63,14 +63,6 @@ TLS-server-client-awake: function [
                                 prepare-server-certificate ctx
                                 either ctx/TLS13? [
                                     prepare-server-handshake-finish ctx
-                                    ;unless ctx/server? [
-                                    ;    derive-application-traffic-secrets ctx
-                                    ;    change-state ctx 'APPLICATION
-                                    ;    ctx/seq-read: 
-                                    ;    ctx/seq-write: 0
-                                    ;    ctx/cipher-spec-set: 2 
-                                    ;]
-
                                 ][
                                     prepare-server-hello-done ctx
                                 ]
@@ -79,17 +71,10 @@ TLS-server-client-awake: function [
                         ]
                         FINISHED [
                             ctx/cipher-spec-set: 2 
-                            ;either ctx/server? [
-                                log-more "FINISHED"
-                                change-state ctx 'APPLICATION
-                                ctx/seq-read: ctx/seq-write: 0
-                                log-more "Start reading real data..."
-                                read TCP-port
-                            ;][
-                            ;    binary/init ctx/out none
-                            ;    prepare-finished-message ctx
-                            ;    write TCP-port head ctx/out/buffer
-                            ;]
+                            log-more "FINISHED"
+                            change-state ctx 'APPLICATION
+                            log-more "Start reading real data..."
+                            read TCP-port
                         ]
                         APPLICATION [
                             ;; Report real application data to the parent
@@ -271,9 +256,6 @@ prepare-server-certificate: function [
                 ;; Get hash of handshake messages (Client Hello .. Certificate)
                 get-transcript-hash ctx 'CERTIFICATE
             ]
-            ;?? to-sign
-            ;?? ctx/context-messages
-            ;probe checksum to-sign 'sha256
             signature: rsa/sign/pss tls-port/state/private-key :to-sign
             ;?? signature
             length: 4 + length? signature

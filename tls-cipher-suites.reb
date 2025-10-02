@@ -108,30 +108,6 @@ suported-cipher-suites-binary: rejoin [
 suported-cipher-suites: decode-list *Cipher-suite :suported-cipher-suites-binary _
 
 supported-signature-algorithms: #{
-
-    0403 ; ecdsa_secp256r1_sha256
-    0503 ; ecdsa_secp384r1_sha384
-    0603 ; ecdsa_secp521r1_sha512
-    0807 ; ed25519
-;   0808 ; ed448
-    0401 ; rsa_pkcs1_sha256
-    0501 ; rsa_pkcs1_sha384
-    0601 ; rsa_pkcs1_sha512
-
-;   0703 ; curve25519 (EdDSA algorithm)
-;   0602 ; SHA512 DSA
-;   0502 ; SHA384 DSA
-
-    0402 ; SHA256 DSA
-
-;   0301 ; SHA224 RSA
-;   0302 ; SHA224 DSA
-;   0303 ; SHA224 ECDSA
-;   0201 ; rsa_pkcs1_sha1
-;   0202 ; SHA1 DSA
-;   0203 ; ecdsa_sha1
-}
-supported-signature-algorithms: #{
 0403 ; ecdsa_secp256r1_sha256
 0503 ; ecdsa_secp384r1_sha384
 0603 ; ecdsa_secp521r1_sha512

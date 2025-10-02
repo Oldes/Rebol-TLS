@@ -1,13 +1,13 @@
 REBOL [
-    version: 0.10.0
+    version: 0.10.1
     title: "TLS Protocol"
     name: tls
-    type: module
-    date: 30-Sep-2025
-    file: %tls-prot.reb
+    date: 2-Oct-2025
+    file: %tls.reb
     author: "Oldes"
-    license: MIT
-    home: https://github.com/Oldes/Rebol-TLS
+    Yype: module
+    License: MIT
+    Home: https://github.com/Oldes/Rebol-TLS
 ]
 comment "## Include: %tls-context.reb"
 comment {## Title:   "TLS Context Object Definition"}
@@ -529,7 +529,7 @@ TLS-key-expansion: func [
         either TLS13? [
             unless derived_secret: derived-secrets/:sha [
                 empty-hash/:sha: checksum #{} :sha
-                zero-keys/:sha: append/dup clear #{} 0 :mac-size
+                zero-keys/:sha: append/dup copy #{} 0 :mac-size
                 early_secret: HKDF-Extract :sha #{} zero-keys/:sha
                 derived-secrets/:sha:
                 derived_secret: HKDF-Expand/label :sha early_secret empty-hash/:sha mac-size "derived"
@@ -705,7 +705,7 @@ decrypt-tls-record: func [
     tag
     aad
 ] [
-    log-more ["---------------- decrypt-tls-record" type]
+    log-more ["Decrypt record of type:^[[1m" type]
     aad: clear #{}
     with ctx [
         either TLS13? [
@@ -788,9 +788,9 @@ derive-application-traffic-secrets: func [
         verify-data: checksum/with finished-hash hash-type finished-key
         derived-secret: HKDF-Expand/label hash-type handshake-secret empty-hash/:hash-type mac-size "derived"
         master-secret: HKDF-Extract hash-type :derived-secret zero-keys/:hash-type
-        log-debug ["Master Secret:^[[1m" master-secret]
-        log-debug ["Locale Handshake Secret:^[[1m" locale-hs-secret]
-        log-debug ["Remote Handshake Secret:^[[1m" remote-hs-secret]
+        log-more ["Master Secret:^[[2m" master-secret]
+        log-more ["Local  Handshake Secret:^[[2m" locale-hs-secret]
+        log-more ["Remote Handshake Secret:^[[2m" remote-hs-secret]
         either server? [
             locale-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "s ap traffic"
             remote-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "c ap traffic"
@@ -798,48 +798,63 @@ derive-application-traffic-secrets: func [
             locale-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "c ap traffic"
             remote-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "s ap traffic"
         ]
-        log-debug ["Locale Traffic   Secret:^[[1m" locale-ap-secret]
-        log-debug ["Remote Traffic   Secret:^[[1m" remote-ap-secret]
+        log-more ["Local  Traffic   Secret:^[[2m" locale-ap-secret]
+        log-more ["Remote Traffic   Secret:^[[2m" remote-ap-secret]
+        locale-ap-key: HKDF-Expand/label hash-type locale-ap-secret #{} crypt-size "key"
+        remote-ap-key: HKDF-Expand/label hash-type remote-ap-secret #{} crypt-size "key"
+        locale-ap-IV: HKDF-Expand/label hash-type locale-ap-secret #{} IV-size + IV-size-dynamic "iv"
+        remote-ap-IV: HKDF-Expand/label hash-type remote-ap-secret #{} IV-size + IV-size-dynamic "iv"
+        log-more ["Local  App IV :^[[2m" locale-ap-IV]
+        log-more ["Remote App IV :^[[2m" remote-ap-IV]
+        log-more ["Local  App Key:^[[2m" locale-ap-key]
+        log-more ["Remote App Key:^[[2m" remote-ap-key]
+        either server? [
+            switch-to-app-encrypt ctx
+        ] [switch-to-app-decrypt ctx]
         reading?: server?
     ] [
         verify-data: prf hash-type either server? ["client finished"] ["server finished"] :finished-hash master-secret 12
     ]
 ]]
-switch-to-app-keys: func [
+switch-to-app-encrypt: func [
     ctx [object!]
-] [with ctx [
-    log-info "Switch to application keys for traffic"
-    locale-ap-key: HKDF-Expand/label hash-type locale-ap-secret #{} crypt-size "key"
-    remote-ap-key: HKDF-Expand/label hash-type remote-ap-secret #{} crypt-size "key"
-    locale-ap-IV: HKDF-Expand/label hash-type locale-ap-secret #{} IV-size + IV-size-dynamic "iv"
-    remote-ap-IV: HKDF-Expand/label hash-type remote-ap-secret #{} IV-size + IV-size-dynamic "iv"
-    log-debug ["Locale App IV :^[[1m" locale-ap-IV]
-    log-debug ["Remote App IV :^[[1m" remote-ap-IV]
-    log-debug ["Locale App Key:^[[1m" locale-ap-key]
-    log-debug ["Remote App Key:^[[1m" remote-ap-key]
-    close encrypt-port
-    close decrypt-port
-    encrypt-port: open [
-        scheme: 'crypt
-        algorithm: :crypt-method
-        init-vector: :locale-ap-IV
-        key: :locale-ap-key
+] [
+    log-info "Switch to application encrypt for traffic"
+    with ctx [
+        close encrypt-port
+        encrypt-port: open [
+            scheme: 'crypt
+            algorithm: :crypt-method
+            init-vector: :locale-ap-IV
+            key: :locale-ap-key
+        ]
+        modify encrypt-port 'aad-length :aad-length
+        if tag-length > 0 [
+            modify encrypt-port 'tag-length :tag-length
+        ]
+        seq-write: 0
     ]
-    decrypt-port: open [
-        scheme: 'crypt
-        direction: 'decrypt
-        algorithm: :crypt-method
-        init-vector: :remote-ap-IV
-        key: :remote-ap-key
+]
+switch-to-app-decrypt: func [
+    ctx [object!]
+] [
+    log-info "Switch to application decrypt for traffic"
+    with ctx [
+        close decrypt-port
+        decrypt-port: open [
+            scheme: 'crypt
+            direction: 'decrypt
+            algorithm: :crypt-method
+            init-vector: :remote-ap-IV
+            key: :remote-ap-key
+        ]
+        modify decrypt-port 'aad-length :aad-length
+        if tag-length > 0 [
+            modify decrypt-port 'tag-length :tag-length
+        ]
+        seq-read: 0
     ]
-    modify encrypt-port 'aad-length :aad-length
-    modify decrypt-port 'aad-length :aad-length
-    if tag-length > 0 [
-        modify decrypt-port 'tag-length :tag-length
-        modify encrypt-port 'tag-length :tag-length
-    ]
-    seq-read: seq-write: 0
-]]
+]
 comment "-- End of:  %tls-crypto.reb"
 comment "## Include: %tls-certificate.reb"
 comment {## Title:   "TLS Certificate Functions"}
@@ -865,7 +880,6 @@ decode-certificates: function [
         append ctx/server-certs cert: attempt [decode 'CRT cert]
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
     ]
-    log-more ["Received" length? ctx/server-certs "server certificates."]
     try/with [
         key: ctx/server-certs/1/public-key
         switch key/1 [
@@ -971,18 +985,16 @@ TLS-parse-handshake-records: function [
                 ]]
             ]
             FINISHED [
-                log-info "Verify handshake data..."
+                log-more "Verify handshake data..."
                 if ctx/version < 772 [
                     seed: get-transcript-hash ctx _
                     ctx/verify-data: prf :ctx/sha-port/spec/method either ctx/server? ["client finished"] ["server finished"] seed ctx/master-secret 12
                 ]
-                log-more ["R:" message]
-                log-more ["L:" ctx/verify-data]
                 if ctx/verify-data <> message [
                     return 'Handshake_failure
                 ]
                 either ctx/server? [
-                    switch-to-app-keys ctx
+                    switch-to-app-decrypt ctx
                     change-state ctx 'APPLICATION
                 ] [
                     if ctx/TLS13? [derive-application-traffic-secrets ctx]
@@ -994,6 +1006,7 @@ TLS-parse-handshake-records: function [
                 log-more ["R[" ctx/seq-read "] encrypted-extensions:" message]
             ]
             NEW_SESSION_TICKET [
+                assert-prev-state ctx [FINISHED APPLICATION]
                 session-ticket: binary/read message [
                     UI32
                     UI32
@@ -1001,8 +1014,9 @@ TLS-parse-handshake-records: function [
                     UI16BYTES
                     UI16BYTES
                 ]
-                ?? session-ticket
-                change-state ctx ctx/protocol: 'APPLICATION
+                log-more ["Session ticket:" mold/flat session-ticket]
+                ctx/protocol: 'APPLICATION
+                ctx/state: ctx/state-prev
             ]
             SERVER_KEY_EXCHANGE [decode-server-key-exchange :ctx :message]
             CLIENT_KEY_EXCHANGE [decode-client-key-exchange :ctx :message]
@@ -1565,9 +1579,8 @@ prepare-finished-message: function [
                 UI24BYTES :verify-data
             ]
             prepare-wrapped-record ctx plain 22
-            switch-to-app-keys ctx
+            switch-to-app-encrypt ctx
             protocol: 'APPLICATION
-            seq-write: 0
         ]
     ] [
         change-state ctx 'FINISHED
@@ -1870,7 +1883,7 @@ TLS-server-client-awake: function [
 ] [
     TCP-port: event/port
     ctx: TCP-port/extra
-    log-debug [{!!!!!!!!!!!!!!!!!!!!!!!!!Server's client awake event:} event/type "state:" ctx/state ctx/server?]
+    log-debug ["Server's client awake event:" event/type "state:" ctx/state ctx/server?]
     switch event/type [
         read [
             error: try [
@@ -1898,7 +1911,6 @@ TLS-server-client-awake: function [
                             ctx/cipher-spec-set: 2
                             log-more "FINISHED"
                             change-state ctx 'APPLICATION
-                            ctx/seq-read: ctx/seq-write: 0
                             log-more "Start reading real data..."
                             read TCP-port
                         ]
@@ -2448,7 +2460,6 @@ suported-cipher-suites-binary: rejoin [
     #{00FF}
 ]
 suported-cipher-suites: decode-list *Cipher-suite :suported-cipher-suites-binary _
-supported-signature-algorithms: #{04030503060308070401050106010402}
 supported-signature-algorithms: #{0403050306030807080408050806040105010601}
 supported-elliptic-curves: make binary! 22
 supported-groups: make block! 12

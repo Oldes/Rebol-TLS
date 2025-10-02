@@ -62,18 +62,18 @@ TLS-parse-handshake-records: function [
                 ]]
             ]
             FINISHED [
-                log-info "Verify handshake data..."
+                log-more "Verify handshake data..."
                 if ctx/version < 0#0304 [
                     seed: get-transcript-hash ctx _
                     ctx/verify-data: prf :ctx/sha-port/spec/method either ctx/server? ["client finished"]["server finished"] seed ctx/master-secret  12
                 ]
-                log-more ["R:" message]
-                log-more ["L:" ctx/verify-data]
+                ;log-debug ["R:" message]
+                ;log-debug ["L:" ctx/verify-data]
                 if ctx/verify-data <> message [
                     return 'Handshake_failure
                 ]
                 either ctx/server? [
-                    switch-to-app-keys ctx
+                    switch-to-app-decrypt ctx
                     change-state ctx 'APPLICATION
                 ][
                     if ctx/TLS13? [derive-application-traffic-secrets ctx]
@@ -86,6 +86,8 @@ TLS-parse-handshake-records: function [
             ]
 
             NEW_SESSION_TICKET [
+                assert-prev-state ctx [FINISHED APPLICATION]
+                ;@@TODO: Implement Session Tickets!
                 session-ticket: binary/read message [
                     UI32      ;; Lifetime in seconds
                     UI32      ;; Obfuscation for early-data age
@@ -93,8 +95,10 @@ TLS-parse-handshake-records: function [
                     UI16BYTES ;; Encrypted resumption state
                     UI16BYTES ;; Optional per-ticket extensions
                 ]
-                ?? session-ticket
-                change-state ctx ctx/protocol: 'APPLICATION
+                log-more ["Session ticket:" mold/flat session-ticket]
+                ctx/protocol: 'APPLICATION
+                ;; Make NEW_SESSION_TICKET state transparent for the following record
+                ctx/state: ctx/state-prev
             ]
 
             SERVER_KEY_EXCHANGE [ decode-server-key-exchange :ctx :message ]
@@ -127,7 +131,6 @@ prepare-change-cipher-spec: function [
         ]
     ]
     ctx/cipher-spec-set: 1
-    ;ctx/seq-write: 0
 ]
 
 prepare-wrapped-record: function [
@@ -161,7 +164,6 @@ encrypt-handshake-msg: function [
             UI16 :legacy-version    ; protocol version
             UI16BYTES :encrypted
         ]
-        ;++ seq-write
     ]
 ]
 

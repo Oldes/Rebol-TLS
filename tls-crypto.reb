@@ -106,7 +106,7 @@ TLS-key-expansion: func [
             unless derived_secret: derived-secrets/:sha [
                 ;; If we haven't yet derived this hash's secret, initialize necessary values.
                 empty-hash/:sha: checksum #{} :sha
-                zero-keys/:sha: append/dup clear #{} 0 :mac-size
+                zero-keys/:sha: append/dup copy #{} 0 :mac-size
                 early_secret:  HKDF-Extract :sha #{} zero-keys/:sha
                 ;; Compute the 'derived' secret using HKDF-Expand-Label, providing separation
                 ;; between different phases of the key schedule. ('mac-size' is the digest size.)
@@ -114,6 +114,7 @@ TLS-key-expansion: func [
                 derived-secrets/:sha:
                 derived_secret: HKDF-Expand/label :sha early_secret empty-hash/:sha mac-size "derived"
             ]
+
             hello_hash: get-transcript-hash ctx _
             handshake-secret: HKDF-Extract      :sha derived_secret :pre-secret
             ;? handshake-secret
@@ -363,7 +364,7 @@ decrypt-tls-record: func [
      tag            ;; Computed authentication tag for verification\
      aad            ;; Additional data used for AEAD
 ][
-    log-more ["---------------- decrypt-tls-record" type]
+    log-more ["Decrypt record of type:^[[1m" type]
     ;?? data
     aad: clear #{}
     with ctx [
@@ -392,6 +393,7 @@ decrypt-tls-record: func [
             mac:  take/last/part data 16
             ;; Decrypt the ciphertext (without auth tag)
             data: read write decrypt-port data
+            ;?? data
             ;; Verify authentication tag matches computed tag
             unless equal? mac take decrypt-port [
                 log-error "Failed to validate MAC after decryption!"
@@ -493,9 +495,9 @@ derive-application-traffic-secrets: func [
         ;; Extract master secret using derived secret as salt and zero key as input
         ;; Master-Secret = HKDF-Extract(Derive-Secret(HS, "derived", ""), 0)
         master-secret: HKDF-Extract      hash-type :derived-secret zero-keys/:hash-type
-        log-debug ["Master Secret:^[[1m" master-secret]
-        log-debug ["Locale Handshake Secret:^[[1m" locale-hs-secret]
-        log-debug ["Remote Handshake Secret:^[[1m" remote-hs-secret]
+        log-more ["Master Secret:^[[2m" master-secret]
+        log-more ["Local  Handshake Secret:^[[2m" locale-hs-secret]
+        log-more ["Remote Handshake Secret:^[[2m" remote-hs-secret]
 
         ;; Derive application traffic secrets from master secret using finished handshake hash
         ;; These are used for post-handshake application data encryption
@@ -506,8 +508,25 @@ derive-application-traffic-secrets: func [
             locale-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "c ap traffic"
             remote-ap-secret: HKDF-Expand/label hash-type master-secret :finished-hash mac-size "s ap traffic"
         ]
-        log-debug ["Locale Traffic   Secret:^[[1m" locale-ap-secret]
-        log-debug ["Remote Traffic   Secret:^[[1m" remote-ap-secret]
+        log-more ["Local  Traffic   Secret:^[[2m" locale-ap-secret]
+        log-more ["Remote Traffic   Secret:^[[2m" remote-ap-secret]
+
+        ;; Derive application data keys from traffic secrets (for post-handshake encryption)
+        locale-ap-key:  HKDF-Expand/label hash-type locale-ap-secret #{} crypt-size "key"
+        remote-ap-key:  HKDF-Expand/label hash-type remote-ap-secret #{} crypt-size "key"
+        ;; Derive application data IVs from traffic secrets (total IV size including dynamic part)
+        locale-ap-IV:   HKDF-Expand/label hash-type locale-ap-secret #{} IV-size + IV-size-dynamic "iv"
+        remote-ap-IV:   HKDF-Expand/label hash-type remote-ap-secret #{} IV-size + IV-size-dynamic "iv"
+
+        log-more ["Local  App IV :^[[2m" locale-ap-IV ]
+        log-more ["Remote App IV :^[[2m" remote-ap-IV ]
+        log-more ["Local  App Key:^[[2m" locale-ap-key]
+        log-more ["Remote App Key:^[[2m" remote-ap-key]
+
+        either server? [
+            switch-to-app-encrypt ctx
+        ][  switch-to-app-decrypt ctx ]
+
         reading?: server?
     ][
         ;; TLS 1.2 path: verify_data computed via PRF over master_secret
@@ -516,46 +535,50 @@ derive-application-traffic-secrets: func [
 ]]
 
 
-switch-to-app-keys: func [
-    ;; Switches the cryptographic context to application data keys after the handshake is complete.
+switch-to-app-encrypt: func [
     ctx [object!]
-][with ctx [
-    log-info "Switch to application keys for traffic"
-    ;; Derive application data keys from traffic secrets (for post-handshake encryption)
-    locale-ap-key:  HKDF-Expand/label hash-type locale-ap-secret #{} crypt-size "key"
-    remote-ap-key:  HKDF-Expand/label hash-type remote-ap-secret #{} crypt-size "key"
-    ;; Derive application data IVs from traffic secrets (total IV size including dynamic part)
-    locale-ap-IV:   HKDF-Expand/label hash-type locale-ap-secret #{} IV-size + IV-size-dynamic "iv"
-    remote-ap-IV:   HKDF-Expand/label hash-type remote-ap-secret #{} IV-size + IV-size-dynamic "iv"
+][
+    log-info "Switch to application encrypt for traffic"
+    with ctx [
+        ;; Close handshake crypt ports...
+        close encrypt-port
+        ;; Open application
+        encrypt-port: open [
+            scheme:      'crypt
+            algorithm:   :crypt-method
+            init-vector: :locale-ap-IV
+            key:         :locale-ap-key
+        ]
+        ;@@ TODO: could be supported in the spec directly, but that is not implemented yet!
+        modify encrypt-port 'aad-length :aad-length
+        if tag-length > 0 [
+            modify encrypt-port 'tag-length :tag-length
+        ]
+        seq-write: 0
+    ]
+]
 
-    log-debug ["Locale App IV :^[[1m" locale-ap-IV ]
-    log-debug ["Remote App IV :^[[1m" remote-ap-IV ]
-    log-debug ["Locale App Key:^[[1m" locale-ap-key]
-    log-debug ["Remote App Key:^[[1m" remote-ap-key]
+switch-to-app-decrypt: func [
+    ctx [object!]
+][
+    log-info "Switch to application decrypt for traffic"
+    with ctx [
+        ;; Close handshake crypt port...
+        close decrypt-port
+        ;; Open application
+        decrypt-port: open [
+            scheme:      'crypt
+            direction:   'decrypt
+            algorithm:   :crypt-method
+            init-vector: :remote-ap-IV
+            key:         :remote-ap-key
+        ]
+        ;@@ TODO: could be supported in the spec directly, but that is not implemented yet!
+        modify decrypt-port 'aad-length :aad-length
+        if tag-length > 0 [
+            modify decrypt-port 'tag-length :tag-length
+        ]
+        seq-read: 0
+    ]
+]
 
-    ;; Close handshake crypt ports...
-    close encrypt-port
-    close decrypt-port
-    ;; Open application
-    encrypt-port: open [
-        scheme:      'crypt
-        algorithm:   :crypt-method
-        init-vector: :locale-ap-IV
-        key:         :locale-ap-key
-    ]
-    decrypt-port: open [
-        scheme:      'crypt
-        direction:   'decrypt
-        algorithm:   :crypt-method
-        init-vector: :remote-ap-IV
-        key:         :remote-ap-key
-    ]
-    ;@@ TODO: could be supported in the spec directly, but that is not implemented yet!
-    modify encrypt-port 'aad-length :aad-length
-    modify decrypt-port 'aad-length :aad-length
-    if tag-length > 0 [
-        modify decrypt-port 'tag-length :tag-length
-        modify encrypt-port 'tag-length :tag-length
-    ]
-    seq-read: seq-write: 0
-]]

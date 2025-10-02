@@ -30,7 +30,7 @@ decode-certificates: function [
         append ctx/server-certs cert: attempt [decode 'CRT cert]
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
     ]
-    log-more ["Received" length? ctx/server-certs "server certificates."]
+    ;log-debug ["Received" length? ctx/server-certs "server certificates."]
     ;? ctx/server-certs
     try/with [
         key: ctx/server-certs/1/public-key
