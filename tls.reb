@@ -1,15 +1,15 @@
 Rebol [
     Title:  "TLS Protocol"
     File:   %tls.reb
-    Name:    tls
-    Yype:    module
+    Name:    'tls
+    Yype:    'module
     Author: "Oldes"
     License: MIT ;= SPDX-License-Identifier
     Home:    https://github.com/Oldes/Rebol-TLS
     Version: 0.10.1
     Date:    02-Oct-2025
 ]
-
+try [_: #(none)] ;; backward compatibility
 #include %tls-context.reb
 #include %tls-constants.reb
 #include %tls-utils.reb

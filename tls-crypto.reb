@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Cryptographic Functions"
     file:  %tls-crypto.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 

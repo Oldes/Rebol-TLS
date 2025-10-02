@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Context Object Definition"
     file:  %tls-context.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 TLS-context: context [

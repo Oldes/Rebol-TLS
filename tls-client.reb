@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Client Implementation"
     file:  %tls-client.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 TLS-client-awake: function [

@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Protocol Constants and Enumerations"
     file:  %tls-constants.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 

@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Utility Functions"
     file:  %tls-utils.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 cause-TLS-error: func [

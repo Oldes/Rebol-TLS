@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Scheme Implementation"
     file:  %tls-scheme.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 ; Port operations

@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Certificate Functions"
     file:  %tls-certificate.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 decode-certificates: function [

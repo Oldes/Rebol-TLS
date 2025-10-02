@@ -1,7 +1,7 @@
 Rebol [
     title: "TLS Handshake messages and parsing"
     file:  %tls-protocol.reb
-    license: MIT ;= SPDX-License-Identifier
+    license: 'MIT ;= SPDX-License-Identifier
 ]
 
 TLS-update-messages-hash: func [
