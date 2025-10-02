@@ -909,13 +909,17 @@ decode-certificate-verify: function [
     ]
     log-debug ["Verify certificate using type:^[[1m" *SignatureAlgorithm/name signature-type]
     if signature-type == 2052 [
-        to-sign: rejoin [
-            server-certificate-verify-context
-            get-transcript-hash ctx 'CERTIFICATE
-        ]
-        key: rsa-init ctx/pub-key ctx/pub-exp
-        unless rsa/verify/pss :key :to-sign :signature [
-            log-error "Certificate validation failed!"
+        either system/version < 3.19.7 [
+            log-error {Current Rebol version is not able to validate this certificate!}
+        ] [
+            to-sign: rejoin [
+                server-certificate-verify-context
+                get-transcript-hash ctx 'CERTIFICATE
+            ]
+            key: rsa-init ctx/pub-key ctx/pub-exp
+            unless rsa/verify/pss :key :to-sign :signature [
+                log-error "Certificate validation failed!"
+            ]
         ]
     ]
 ]
@@ -1740,7 +1744,12 @@ decode-server-key-exchange: function [
                 rsa_pss_rsae_sha256
                 rsa_pss_rsae_sha384
                 rsa_pss_rsae_sha512 [
-                    valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
+                    either system/version < 3.19.7 [
+                        log-error {Current Rebol version is not able to validate this certificate!}
+                        valid?: true
+                    ] [
+                        valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
+                    ]
                 ]
             ]
         ]
