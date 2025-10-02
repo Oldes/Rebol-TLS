@@ -84,7 +84,13 @@ decode-server-key-exchange: function [
                 rsa_pss_rsae_sha256
                 rsa_pss_rsae_sha384
                 rsa_pss_rsae_sha512 [
-                    valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
+                    either system/version < 3.19.7 [
+                        ;@@ TEMPORARY FIX!
+                        log-error "Current Rebol version is not able to validate this certificate!"
+                        valid?: true
+                    ][
+                        valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
+                    ]
                 ]
             ]
         ]
