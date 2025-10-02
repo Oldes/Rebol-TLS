@@ -1,4 +1,6 @@
 ![rebol-tls](https://github.com/user-attachments/assets/2356d7f2-8880-440f-8240-7306cdf34453)
+
+[![Rebol-TLS CI](https://github.com/Oldes/Rebol-TLS/actions/workflows/main.yml/badge.svg)](https://github.com/Oldes/Rebol-TLS/actions/workflows/main.yml)
 [![Gitter](https://badges.gitter.im/rebol3/community.svg)](https://app.gitter.im/#/room/#Rebol3:gitter.im)
 [![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://rebol.zulipchat.com/#narrow/stream/371632-Rebol.2FHTTPd)
 
@@ -116,3 +118,4 @@ This project is licensed under the MIT License. See the [LICENSE](https://github
 
 
 <img width="2878" height="1704" alt="tls" src="https://github.com/user-attachments/assets/b0f2c9d9-1d45-4cd9-932b-69c750bc174d" />
+
