@@ -76,14 +76,19 @@ decode-certificate-verify: function [
     ;?? signature
     ;?? ctx/context-messages
     if signature-type == 0#0804 [
-        to-sign: rejoin [
-            server-certificate-verify-context
-            ;; Get hash of handshake messages (Client Hello .. Certificate)
-            get-transcript-hash ctx 'CERTIFICATE
-        ]
-        key: rsa-init ctx/pub-key ctx/pub-exp
-        unless rsa/verify/pss :key :to-sign :signature [
-            log-error "Certificate validation failed!"
+        either system/version < 3.19.7 [
+            ;@@ TEMPORARY FIX!
+            log-error "Current Rebol version is not able to validate this certificate!"
+        ][
+            to-sign: rejoin [
+                server-certificate-verify-context
+                ;; Get hash of handshake messages (Client Hello .. Certificate)
+                get-transcript-hash ctx 'CERTIFICATE
+            ]
+            key: rsa-init ctx/pub-key ctx/pub-exp
+            unless rsa/verify/pss :key :to-sign :signature [
+                log-error "Certificate validation failed!"
+            ]
         ]
     ]
 ]
