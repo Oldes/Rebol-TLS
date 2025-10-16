@@ -72,7 +72,7 @@ decode-certificate-verify: function [
        signature: UI16BYTES
     ]
     ;@@TODO: certificate validation also for other types!
-    log-debug ["Verify certificate using type:^[[1m" *SignatureAlgorithm/name signature-type]
+    log-debug ["Verify certificate using type:^[[1m" *SignatureScheme/name signature-type]
     ;?? signature
     ;?? ctx/context-messages
     if signature-type == 0#0804 [

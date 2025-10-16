@@ -101,9 +101,16 @@ TLS-client-awake: function [
                                     handshake-finished ctx
                                     return true ;= wake up
                                 ][
-                                    prepare-finished-message ctx
-                                    do-TCP-write ctx
-                                    return false
+                                    either ctx/TLS13? [
+                                        prepare-finished-message ctx
+                                        do-TCP-write ctx
+                                        return false
+                                    ][
+                                        change-state ctx ctx/protocol: 'APPLICATION
+                                        dispatch-event 'connect ctx/TLS-port
+                                        ;print-horizontal-line
+                                        return true ;= wake up
+                                    ]
                                 ]
                             ]
                         ]

@@ -170,24 +170,32 @@ Rebol [
     md5_sha1: 255
 ] 'TLSHashAlgorithm
 
-*SignatureAlgorithm: enum [
-    rsa_pkcs1_sha1:         0#0401
-    rsa_pkcs1_sha224:       0#0501
-    rsa_pkcs1_sha256:       0#0601
-    rsa_pkcs1_sha384:       0#0701
-    rsa_pkcs1_sha512:       0#0801
-    rsa_pss_rsae_sha256:    0#0804
-    rsa_pss_rsae_sha384:    0#0805
-    rsa_pss_rsae_sha512:    0#0806
-    rsa_pss_pss_sha256:     0#0807
-    rsa_pss_pss_sha384:     0#0808
-    rsa_pss_pss_sha512:     0#0809
+;@@ https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.3
+*SignatureScheme: enum [
+    ;; RSASSA-PKCS1-v1_5 algorithms
+    rsa_pkcs1_sha256:       0#0401
+    rsa_pkcs1_sha384:       0#0501
+    rsa_pkcs1_sha512:       0#0601
+    ;; ECDSA algorithms
     ecdsa_secp256r1_sha256: 0#0403
     ecdsa_secp384r1_sha384: 0#0503
     ecdsa_secp521r1_sha512: 0#0603
-    ed25519:                0#080A
-    ed448:                  0#080B
-] 'TLSSignatureAlgorithm
+    ;; RSASSA-PSS algorithms with public key OID rsaEncryption
+    rsa_pss_rsae_sha256:    0#0804
+    rsa_pss_rsae_sha384:    0#0805
+    rsa_pss_rsae_sha512:    0#0806
+    ;; EdDSA algorithms
+    ed25519:                0#0807
+    ed448:                  0#0808
+    ;; RSASSA-PSS algorithms with public key OID RSASSA-PSS
+    rsa_pss_pss_sha256:     0#0809
+    rsa_pss_pss_sha384:     0#080A
+    rsa_pss_pss_sha512:     0#080B
+    ;; Legacy algorithms
+    rsa_pkcs1_sha1:         0#0201
+    ecdsa_sha1:             0#0203
+
+] 'TLSSignatureScheme
 
 *ClientCertificateType: enum [
     rsa_sign:                  1

@@ -225,65 +225,67 @@ decode-extensions: function [
         decoded: ext-data
         ;? ext-data
         ext-type: any [*TLS-Extension/name ext-type  ext-type]
-        ext-data: binary ext-data
-        switch ext-type [
-            supported_groups [
-                decoded: decode-list *EllipticCurves ext-data 'UI16
-            ]
-            supported_versions [
-                ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.1
-                either ctx/server? [
-                    ;; Client sends list of supported TLS versions...
-                    num: (binary/read ext-data 'UI8) >> 1
-                    decoded: make block! num
-                    loop num [
-                       append decoded binary/read ext-data 'UI16
-                    ]
-                ][
-                    ;; Server sends just one TLS version, which wants to use... 
-                    either 2 != length? ext-data/buffer [
-                        log-error "Invalid length of the supported_versions extension!"
-                    ][  decoded: binary/read ext-data 'UI16]
+        unless empty? ext-data [
+            ext-data: binary ext-data
+            switch ext-type [
+                supported_groups [
+                    decoded: decode-list *EllipticCurves ext-data 'UI16
                 ]
-            ]
-            key_share [
-                bytes: either ctx/server? [
-                    binary/read ext-data 'UI16
-                ][  length? ext-data/buffer ]
-                decoded: copy []
-                either bytes == 2 [
-                    decoded: binary/read ext-data 'UI16
-                ][
-                    while [bytes >= 8][
-                        binary/read ext-data [curve: UI16 len: UI16]
-                        bytes: bytes - len - 4
-                        tmp: binary/read ext-data :len
-                        if curve: *EllipticCurves/name curve [
-                            repend decoded [curve tmp]
+                supported_versions [
+                    ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.1
+                    either ctx/server? [
+                        ;; Client sends list of supported TLS versions...
+                        num: (binary/read ext-data 'UI8) >> 1
+                        decoded: make block! num
+                        loop num [
+                           append decoded binary/read ext-data 'UI16
+                        ]
+                    ][
+                        ;; Server sends just one TLS version, which wants to use... 
+                        either 2 != length? ext-data/buffer [
+                            log-error "Invalid length of the supported_versions extension!"
+                        ][  decoded: binary/read ext-data 'UI16]
+                    ]
+                ]
+                key_share [
+                    bytes: either ctx/server? [
+                        binary/read ext-data 'UI16
+                    ][  length? ext-data/buffer ]
+                    decoded: copy []
+                    either bytes == 2 [
+                        decoded: binary/read ext-data 'UI16
+                    ][
+                        while [bytes >= 8][
+                            binary/read ext-data [curve: UI16 len: UI16]
+                            bytes: bytes - len - 4
+                            tmp: binary/read ext-data :len
+                            if curve: *EllipticCurves/name curve [
+                                repend decoded [curve tmp]
+                            ]
                         ]
                     ]
                 ]
-            ]
-            server_name [
-                bytes: binary/read ext-data 'UI16
-                case [
-                    bytes != length? ext-data/buffer [
-                        log-error "Invalid length of the server_name extension!"
-                    ]
-                    0 != binary/read ext-data 'UI8 [
-                        log-error "Unknown server_name type!"
-                    ]
-                    'else [
-                        decoded: to string! binary/read ext-data 'UI16BYTES
-                        log-info ["Requested server name:^[[1m" decoded]
+                server_name [
+                    bytes: binary/read ext-data 'UI16
+                    case [
+                        bytes != length? ext-data/buffer [
+                            log-error "Invalid length of the server_name extension!"
+                        ]
+                        0 != binary/read ext-data 'UI8 [
+                            log-error "Unknown server_name type!"
+                        ]
+                        'else [
+                            decoded: to string! binary/read ext-data 'UI16BYTES
+                            log-info ["Requested server name:^[[1m" decoded]
+                        ]
                     ]
                 ]
-            ]
-            signature_algorithms [
-                decoded: decode-list *SignatureAlgorithm ext-data 'UI16 
-            ]
-            compress_certificate [
-                decoded: decode-list *TLS-CertCompression ext-data 'UI8
+                signature_algorithms [
+                    decoded: decode-list *SignatureScheme ext-data 'UI16 
+                ]
+                compress_certificate [
+                    decoded: decode-list *TLS-CertCompression ext-data 'UI8
+                ]
             ]
         ]
         ;? decoded

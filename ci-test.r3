@@ -27,6 +27,7 @@ foreach url [
 	https://rosettacode.org/wiki/Rosetta_Code ;= supports only TLS1.3
 	https://www.rebol.com
 	https://codeberg.org ;= sends NEW_SESSION_TICKET in the same fragment like FINISHED
+	https://www.tribunalecatania.it ;= has invalid extension; supports only TLS1.2
 ][
 	print-horizontal-line
 	print [as-yellow "Trying to read:" as-green url]

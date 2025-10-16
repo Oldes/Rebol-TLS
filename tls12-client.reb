@@ -54,45 +54,24 @@ decode-server-key-exchange: function [
     ]
     
     ;-- check signature
-    binary/read msg [
-        algorithm: UI16
-        signature: UI16BYTES
-    ]
-
-    unless algorithm: *SignatureAlgorithm/name  algorithm [
-        log-error "Unknown signature algorithm!"
-        cause-TLS-error 'Decode_error
-    ]
-
-    hash-algorithm: signature-hash-methods/:algorithm
-
-    log-more ["R[" ctx/seq-read "] Signature Algorithm:" algorithm "=" enbase *SignatureAlgorithm/:algorithm 16]
+    hash-algorithm:         *HashAlgorithm/name binary/read msg 'UI8
+    sign-algorithm: *ClientCertificateType/name binary/read msg 'UI8
+    signature:                                  binary/read msg 'UI16BYTES
+    log-more ["R[" ctx/seq-read "] Using algorithm:" hash-algorithm "with" sign-algorithm]
 
     key: ctx/server-certs/1/public-key
-    switch key/1 [
-        ecPublicKey [
-            log-more "Checking signature using RSA_fixed_DH"
+    switch sign-algorithm [
+        ecdsa_sign [
+            log-more "Checking signature using ECDSA"
             ;@@ TODO: rewrite ecdsa/verify to count the hash automatically like it is in rsa/verify now?
             message-hash: checksum verify-data hash-algorithm
             ; test validity:
             ecdsa/verify/curve ctx/pub-key message-hash signature ctx/pub-exp
         ]
-        rsaEncryption [
+        rsa_sign [
             log-more "Checking signature using RSA"
             rsa-key: apply :rsa-init ctx/server-certs/1/public-key/rsaEncryption
-            switch algorithm [
-                rsa_pss_rsae_sha256
-                rsa_pss_rsae_sha384
-                rsa_pss_rsae_sha512 [
-                    either system/version < 3.19.7 [
-                        ;@@ TEMPORARY FIX!
-                        log-error "Current Rebol version is not able to validate this certificate!"
-                        valid?: true
-                    ][
-                        valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
-                    ]
-                ]
-            ]
+            valid?: rsa/verify/hash rsa-key verify-data signature hash-algorithm
         ]
     ]
     unless valid? [
