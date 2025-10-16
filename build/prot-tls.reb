@@ -1,8 +1,8 @@
 REBOL [
-    version: 0.10.1
+    version: 0.10.2
     title: "TLS Protocol"
     name: tls
-    date: 2-Oct-2025
+    date: 16-Oct-2025
     file: %tls.reb
     author: "Oldes"
     Yype: module
@@ -1576,7 +1576,6 @@ prepare-client-hello: function [
 prepare-finished-message: function [
     ctx [object!]
 ] [
-    print "prepare-finished-message"
     either ctx/TLS13? [
         with ctx [
             log-debug {Send CHANGE_CIPHER_SPEC record (middlebox compatibility mode)}
