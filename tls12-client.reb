@@ -54,9 +54,23 @@ decode-server-key-exchange: function [
     ]
     
     ;-- check signature
-    hash-algorithm:         *HashAlgorithm/name binary/read msg 'UI8
-    sign-algorithm: *ClientCertificateType/name binary/read msg 'UI8
-    signature:                                  binary/read msg 'UI16BYTES
+    binary/read msg [
+        hash-algorithm: UI8
+        sign-algorithm: UI8
+        signature:      UI16BYTES
+    ]
+    either hash-algorithm == 8 [
+        ;; Some sites use TLS1.3 signature algorithms even in TLS1.2
+        switch sign-algorithm [
+            0#04 [sign-algorithm: 'rsa_pss hash-algorithm: 'sha256] ;= rsa_pss_rsae_sha256
+            0#05 [sign-algorithm: 'rsa_pss hash-algorithm: 'sha384] ;= rsa_pss_rsae_sha384
+            0#06 [sign-algorithm: 'rsa_pss hash-algorithm: 'sha512] ;= rsa_pss_rsae_sha512
+            ;@@ other?
+        ]
+    ][  ;; By default it is hash/sign pair in TLS1.2
+        hash-algorithm:         *HashAlgorithm/name :hash-algorithm
+        sign-algorithm: *ClientCertificateType/name :sign-algorithm
+    ]
     log-more ["R[" ctx/seq-read "] Using algorithm:" hash-algorithm "with" sign-algorithm]
 
     key: ctx/server-certs/1/public-key
@@ -72,6 +86,11 @@ decode-server-key-exchange: function [
             log-more "Checking signature using RSA"
             rsa-key: apply :rsa-init ctx/server-certs/1/public-key/rsaEncryption
             valid?: rsa/verify/hash rsa-key verify-data signature hash-algorithm
+        ]
+        rsa_pss [
+            log-more "Checking signature using RSA_PSS"
+            rsa-key: apply :rsa-init ctx/server-certs/1/public-key/rsaEncryption
+            valid?: rsa/verify/pss/hash rsa-key verify-data signature hash-algorithm
         ]
     ]
     unless valid? [
