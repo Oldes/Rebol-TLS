@@ -28,6 +28,7 @@ foreach url [
 	https://www.rebol.com
 	https://codeberg.org ;= sends NEW_SESSION_TICKET in the same fragment like FINISHED
 	https://www.tribunalecatania.it ;= has invalid extension; supports only TLS1.2
+	https://statsapi.mlb.com/api/v1/gameTypes ;= use TLS1.2 with rss_pss signature algorithm
 ][
 	print-horizontal-line
 	print [as-yellow "Trying to read:" as-green url]
