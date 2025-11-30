@@ -35,12 +35,17 @@ get-transcript-hash: function [
 TLS-parse-handshake-records: function [
     ;; Parses and dispatches one or more handshake messages out of a TLS record buffer.
     ctx  [object!]
-    data [binary!]
 ][
-    bin: binary data 
+    bin: binary ctx/port-data 
     while [4 <= length? bin/buffer][
         start: bin/buffer
-        binary/read bin [type: UI8 message: UI24BYTES]
+        binary/read bin [type: UI8 len: UI24]
+        if len > length? bin/buffer [
+            ;; Not fully received encoded handshake fragment!
+            bin/buffer: start ;; reset position to the start of the message
+            break             ;; and stop parsing until the message will be complete
+        ]
+        message: binary/read bin len
         log-debug ["R[" ctx/seq-read "] length:" length? message "type:" type]
 
         change-state ctx *Handshake/name type
@@ -112,6 +117,7 @@ TLS-parse-handshake-records: function [
 
     ] ;; more messages?
     log-more ["DONE: handshake^[[1m" ctx/state] log-----
+    ctx/port-data: truncate bin/buffer ;; remove already processed data
     false ;= no error
 ]
 

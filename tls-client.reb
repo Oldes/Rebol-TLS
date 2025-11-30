@@ -228,6 +228,7 @@ TLS-read-data: function [
                     log-debug ["Inner type:^[[1m" type]
                 ]
             ]
+            append ctx/port-data data
         ]
 
         *protocol-type/assert type
@@ -247,7 +248,6 @@ TLS-read-data: function [
             APPLICATION [
                 ; first one, as it's the most common
                 assert-prev-state ctx [APPLICATION ALERT FINISHED NEW_SESSION_TICKET]
-                append ctx/port-data data
                 ;prin "Application " ?? data
                 ;@@ TODO: the parent scheme (HTTPS) should be notified here,
                 ;@@ that there are already some decrypted data available!   
@@ -255,10 +255,7 @@ TLS-read-data: function [
             ]
             HANDSHAKE [
                 ; process the handshake message, set `critical-error` if there is any
-                ;?? data
-                unless empty? data [
-                    ctx/critical-error: TLS-parse-handshake-records ctx data
-                ]
+                ctx/critical-error: TLS-parse-handshake-records ctx
                 ctx/reading?: any [ctx/server? not empty? inp/buffer]
             ]
             CHANGE_CIPHER_SPEC [
