@@ -707,6 +707,13 @@ client-hello-extensions: func [
 	] []
 ]
 
+--test-- "transcript contains exactly the ClientHello handshake message" [
+	ctx: new-TLS-context [tcp-port: make port! [scheme: 'tcp host: "localhost" port: 443]]
+	TLS-init-context ctx
+	prepare-client-hello ctx
+	is? ctx/context-messages reduce ['CLIENT_HELLO  skip head ctx/out/buffer 5] ;= without the record header
+]
+
 
 
 group "Alerts"

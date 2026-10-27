@@ -209,7 +209,7 @@ wrap-record: func [
     ctx       [object! ]  ;; TLS context containing encryption keys and state
     plaintext [binary! ]  ;; Raw application or handshake data to encrypt
     type      [integer!]  ;; Original TLS content type (22=handshake, 23=app_data)
-    /locale
+    /local
      length         ;; Length of plaintext + content type + auth tag
      nonce          ;; AEAD nonce for TLS 1.3 encryption
      seq-bytes      ;; Sequence number in binary format

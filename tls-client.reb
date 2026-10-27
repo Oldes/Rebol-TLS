@@ -500,7 +500,8 @@ prepare-client-hello: function [
         out/buffer: head out/buffer
         
         locale-random: copy/part (at out/buffer 12) 32
-        TLS-update-messages-hash ctx (at out/buffer 6) (4 + length-message) ;@@ TODO review!
+        ;; Count the handshake message (without the 5 bytes of the record header)
+        TLS-update-messages-hash/part ctx (at out/buffer 6) (4 + length-message)
         log-more [
             "W[" ctx/seq-write "] Bytes:" length? out/buffer "=>"
             "record:"     length-record
