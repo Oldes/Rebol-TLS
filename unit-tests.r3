@@ -743,4 +743,73 @@ group "Alerts"
 	] [21 #{0100} #(none)]
 ]
 
+
+
+group "decode-server-hello"
+
+;; Returns a client context in the state after sending ClientHello with a curve25519 key share
+client-after-hello: func ["Makes a client context waiting for ServerHello" /local ctx][
+	ctx: new-TLS-context [
+		version:          0#0303
+		state-prev:       'CLIENT_HELLO
+		ecdh-group:       'curve25519
+		context-messages: reduce ['CLIENT_HELLO #{01000000}]
+	]
+	ctx/dh-key: ecdh/init none 'curve25519
+	ctx
+]
+;; Returns a TLS1.3 ServerHello message body with the given key_share extension data
+server-hello-msg: func [
+	"Makes a TLS1.3 ServerHello (or HelloRetryRequest) message body"
+	key-share [binary! none!] "key_share extension data (none = no key_share)"
+	/hrr "HelloRetryRequest"
+	/local ext bin
+][
+	ext: make binary! 100
+	binary/write ext [UI16 43 UI16 2 UI16 0#0304] ;= supported_versions: TLS1.3
+	if key-share [binary/write tail ext [UI16 51 UI16BYTES :key-share]]
+	bin: binary/write make binary! 200 compose [
+		UI16      0#0303
+		BYTES     (either hrr [HRR-magic][#{0101010101010101010101010101010101010101010101010101010101010101}])
+		UI8BYTES  #{}
+		UI16      0#1301
+		UI8       0
+		UI16BYTES :ext
+	]
+	head bin/buffer
+]
+;; key_share extension data with server's public key
+key-share-of: func ["Makes key_share data" curve [word!] /local key data][
+	key: ecdh/public ecdh/init none curve
+	binary/write data: make binary! 100 [UI16 :*EllipticCurves/:curve  UI16BYTES :key]
+	data
+]
+
+--test-- "TLS1.3 ServerHello with matching key_share is accepted" [
+	ctx: client-after-hello
+	decode-server-hello ctx server-hello-msg key-share-of 'curve25519
+	is? ctx/TLS13? true
+]
+
+--test-- "TLS1.3 ServerHello without key_share is refused" [
+	e: try [decode-server-hello client-after-hello server-hello-msg none]
+	all [error? e  did find form e "Illegal parameter"]
+]
+
+--test-- "TLS1.3 ServerHello with key_share for other group is refused" [
+	e: try [decode-server-hello client-after-hello server-hello-msg key-share-of 'secp256r1]
+	all [error? e  did find form e "Illegal parameter"]
+]
+
+--test-- "HelloRetryRequest for the already sent group is refused" [
+	e: try [decode-server-hello client-after-hello server-hello-msg/hrr #{001D}] ;= curve25519
+	all [error? e  did find form e "Illegal parameter"]
+]
+
+--test-- "HelloRetryRequest for other supported group is accepted" [
+	ctx: client-after-hello
+	decode-server-hello ctx server-hello-msg/hrr #{0017} ;= secp256r1
+	is? ctx/extensions/key_share 0#0017
+]
+
 summary

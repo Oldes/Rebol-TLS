@@ -613,10 +613,21 @@ decode-server-hello: function [
 
         ;-- extensions handling
         extensions: decode-extensions ctx :extensions
-        case/all [
+        case [
             integer? extensions/key_share [
                 ;; Server's Hello Retry Request
-                log-info ["Hello Retry Request with key_share type:" *EllipticCurves/name extensions/key_share]
+                group: *EllipticCurves/name extensions/key_share
+                log-info ["Hello Retry Request with key_share type:" group]
+                ;; Requested group must be supported and must not be the one already sent
+                ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.8
+                unless all [
+                    group
+                    find supported-groups group
+                    group <> ecdh-group
+                ][
+                    log-error ["Invalid group requested in HelloRetryRequest:" extensions/key_share]
+                    cause-TLS-error 'Illegal_parameter
+                ]
                 ;; Transcript hash -> https://datatracker.ietf.org/doc/html/rfc8446#section-4.4.1
                 ;; Replace CLIENT_HELLO message with a special synthetic handshake message of handshake type
                 ;; "message_hash" containing Hash(ClientHello1)
@@ -627,13 +638,17 @@ decode-server-hello: function [
                     UI8BYTES :hash
                 ]
             ]
-            all [
-                extensions/supported_versions == 0#0304 ;; Server accepts TLS1.3
-                ;; key must be same type like used in CLIENT_HELLO 
-                handle? dh-key
-                block? extensions/key_share
-                ;extensions/key_share/1 = probe ecdh/curve dh-key
-            ][
+            extensions/supported_versions == 0#0304 [
+                ;; Server accepts TLS1.3, so its key share must be for the group used in CLIENT_HELLO
+                ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.8
+                unless all [
+                    handle? dh-key
+                    block? extensions/key_share
+                    extensions/key_share/1 = ecdh-group
+                ][
+                    log-error "Missing or invalid key_share in TLS1.3 ServerHello!"
+                    cause-TLS-error 'Illegal_parameter
+                ]
                 log-info "Using TLS v1.3"
                 version: 0#0304
                 TLS13?: true
