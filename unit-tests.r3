@@ -274,15 +274,17 @@ group "TLS1.2 record protection"
 ;; (the state right after the key exchange)
 tls12-pair: func [
 	"Makes a TLS1.2 client/server context pair with matching keys"
+	/suite "Use other cipher suite (default: TLS_ECDHE_RSA_WITH_AES-128-GCM_SHA256)"
+	 id [integer!]
 	/local pair ctx
 ][
 	pair: copy []
 	foreach server? [#(false) #(true)][
 		ctx: new-TLS-context [
 			version:      0#0303
-			cipher-suite: 0#C02F ;= TLS_ECDHE_RSA_WITH_AES-128-GCM_SHA256
 			pre-secret:   #{000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F}
 		]
+		ctx/cipher-suite: any [id 0#C02F]
 		ctx/server?: server?
 		ctx/locale-random: either server? [#{AA}][#{CC}]
 		ctx/remote-random: either server? [#{CC}][#{AA}]
@@ -306,6 +308,29 @@ tls12-pair: func [
 		to string! decrypt-tls-record server records/6 23
 	]
 	is? reduce [server/critical-error result] [#(none) ["first" "second"]]
+]
+
+--test-- "TLS1.2 CBC record is decrypted" [
+	set [client server] tls12-pair/suite 0#C027 ;= TLS_ECDHE_RSA_WITH_AES-128-CBC_SHA256
+	prepare-application-data client "hello"
+	record: binary/read binary head client/out/buffer [UI8 UI16 UI16BYTES]
+	result: decrypt-tls-record server record/3 23
+	is? reduce [server/critical-error result] [#(none) #{68656C6C6F}]
+]
+
+--test-- "TLS1.2 CBC record with invalid padding bytes is refused" [
+	set [client server] tls12-pair/suite 0#C027
+	content: to binary! "hello"
+	;; MAC over: seq_num type version length content
+	mac: checksum/with rejoin [#{0000000000000000 17 0303 0005} content] 'sha256 client/locale-mac
+	data: rejoin [content mac]                     ;= 37 bytes
+	append/dup data 10 11                          ;= padding to 48 bytes (11 bytes of value 10)
+	change at data 38 #{00}                        ;= damage the first padding byte (last one is still valid)
+	iv: #{000102030405060708090A0B0C0D0E0F}
+	modify client/encrypt-port 'init-vector iv
+	record: join iv read update write client/encrypt-port data
+	decrypt-tls-record server record 23
+	is? server/critical-error = 'Bad_record_MAC true
 ]
 
 

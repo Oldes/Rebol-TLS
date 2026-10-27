@@ -364,6 +364,7 @@ decrypt-tls-record: func [
      mac            ;; Authentication tag/MAC value
      tag            ;; Computed authentication tag for verification\
      aad            ;; Additional data used for AEAD
+     pad            ;; Length of CBC padding
 ][
     log-more ["Decrypt record of type:^[[1m" type]
     ;?? data
@@ -444,9 +445,20 @@ decrypt-tls-record: func [
                 data: read update write decrypt-port :data
 
                 if block-size [
-                    ;; Handle PKCS#7 padding in CBC mode
-                    ;; Padding length is stored in the last byte
-                    clear skip tail data (-1 - (to integer! last data))
+                    ;; Handle padding in CBC mode
+                    ;; Padding length is stored in the last byte and all padding bytes
+                    ;; must have this value: https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.3.2
+                    pad: to integer! last data
+                    unless all [
+                        mac-size + pad < length? data
+                        (skip tail data (-1 - pad)) == append/dup copy #{} pad (pad + 1)
+                    ][
+                        ;; Invalid padding is reported as Bad_record_MAC (not as a padding error)
+                        ;; and the MAC is still computed (like with no padding)
+                        critical-error: 'Bad_record_MAC
+                        pad: 0
+                    ]
+                    clear skip tail data (-1 - pad)
                     ;; Extract MAC from end of plaintext
                     mac: take/last/part data mac-size
                     ;; Verify HMAC over sequence + type + version + plaintext
