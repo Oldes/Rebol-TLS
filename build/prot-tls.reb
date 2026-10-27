@@ -1991,11 +1991,10 @@ prepare-server-hello: function [
                 ctx/hello-retry-request: none
             ] [
                 change-state ctx 'SERVER_HELLO_RETRY
-                ?? supported-groups
-                ?? ctx/extensions/supported_groups
                 hello-retry-request: true
-                ecdh-group: attempt [
-                    curve: first union supported-groups ctx/extensions/supported_groups
+                ecdh-group: all [
+                    block? extensions/supported_groups
+                    curve: first intersect supported-groups extensions/supported_groups
                     *EllipticCurves/:curve
                 ]
                 unless ecdh-group [
@@ -2008,17 +2007,18 @@ prepare-server-hello: function [
             ]
         ]
         binary/init out none
-        server-extensions: #{}
-        if find extensions 'ec_point_formats [
-            append server-extensions #{000B000403000102}
-        ]
-        if find extensions 'renegotiation_info [
-            append server-extensions #{FF01000100}
-        ]
-        if TLS13? [
+        server-extensions: make binary! 16
+        either TLS13? [
             append server-extensions #{002B00020304}
             if key_share [
                 encode-extension server-extensions 51 key_share
+            ]
+        ] [
+            if find extensions 'supported_point_formats [
+                append server-extensions #{000B000403000102}
+            ]
+            if find extensions 'renegotiation_info [
+                append server-extensions #{FF01000100}
             ]
         ]
         binary/write out [

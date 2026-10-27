@@ -120,7 +120,7 @@ server-hello-extensions: func [
 		UI16 BYTES 32 UI8BYTES UI16 UI8
 		UI16BYTES     ;= extensions
 	]
-	sort words-of decode-extensions make TLS-context [] last data
+	decode-extensions make TLS-context [] last data
 ]
 
 client-key: ecdh/public ecdh/init none 'curve25519
@@ -133,7 +133,7 @@ client-key: ecdh/public ecdh/init none 'curve25519
 		extensions:   #[supported_point_formats: #{03000102} renegotiation_info: #{00}]
 	]
 	prepare-server-hello ctx
-	is? server-hello-extensions ctx [renegotiation_info supported_point_formats]
+	is? sort words-of server-hello-extensions ctx [renegotiation_info supported_point_formats]
 ]
 
 --test-- "TLS1.3 sends only supported_versions and key_share" [
@@ -149,7 +149,37 @@ client-key: ecdh/public ecdh/init none 'curve25519
 		]
 	]
 	prepare-server-hello ctx
-	is? server-hello-extensions ctx [key_share supported_versions]
+	is? sort words-of server-hello-extensions ctx [key_share supported_versions]
+]
+
+--test-- "HelloRetryRequest asks for a group supported by the client" [
+	ctx: make TLS-context [
+		server?:      true
+		session-id:   #{}
+		cipher-suite: 0#1301
+		extensions:   #[
+			supported_versions: [0#0304 0#0303]
+			supported_groups:   [secp192r1 secp256r1] ;= server does not use secp192r1
+			key_share:          [secp192r1 #{04}]
+		]
+	]
+	prepare-server-hello ctx
+	is? select server-hello-extensions ctx 'key_share 0#0017 ;= secp256r1
+]
+
+--test-- "HelloRetryRequest without a common group fails" [
+	ctx: make TLS-context [
+		server?:      true
+		session-id:   #{}
+		cipher-suite: 0#1301
+		extensions:   #[
+			supported_versions: [0#0304 0#0303]
+			supported_groups:   [secp192r1]
+			key_share:          [secp192r1 #{04}]
+		]
+	]
+	e: try [prepare-server-hello ctx]
+	all [error? e  did find form e "Insufficient security"]
 ]
 
 
