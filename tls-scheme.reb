@@ -149,7 +149,8 @@ do-TLS-write: func [
     ;? ctx
     if ctx/protocol = 'APPLICATION [
         binary/init ctx/out none ;resets the output buffer
-        ;@@ There is a size limit for application data 16KiB!
+        ;; The record size limit (16KiB) is in bytes, not in chars!
+        unless binary? value [value: to binary! value]
         while [not tail? value][
             prepare-application-data ctx copy/part :value 16384
             value: skip value 16384

@@ -304,10 +304,7 @@ tls12-pair: func [
 		to string! decrypt-tls-record server records/3 23
 		to string! decrypt-tls-record server records/6 23
 	]
-	all [
-		none? server/critical-error
-		is? result ["first" "second"]
-	]
+	is? reduce [server/critical-error result] [#(none) ["first" "second"]]
 ]
 
 
@@ -379,6 +376,46 @@ der: select decode 'pkix read %certs/MyCertificate.crt 'binary
 	msg: binary/write make binary! 5000 [UI8 0 UI24BYTES :entries]
 	decode-certificates ctx msg/buffer
 	is? length? ctx/server-certs 2
+]
+
+
+
+group "do-TLS-write"
+
+;; A port which only collects written data (used instead of the TCP port)
+sys/make-scheme [
+	name:  'test-sink
+	title: "Collects written data"
+	actor: [
+		open:  func [port][port/data: make binary! 40000 port]
+		write: func [port data][append port/data data port]
+	]
+]
+
+--test-- "multibyte string is split to records of max 16KiB" [
+	set [client server] handshake-pair
+	derive-application-traffic-secrets server
+	derive-application-traffic-secrets client
+	switch-to-app-encrypt client
+	switch-to-app-decrypt server
+	client/protocol: 'APPLICATION
+	client/tcp-port: open test-sink://
+	port: make port! [scheme: 'tls]
+	port/extra: client
+	text: append/dup copy "" #"ž" 10000 ;= 20000 bytes in UTF-8
+	do-TLS-write port text
+	;; decrypt all written records
+	data: make binary! 20000
+	sizes: copy []
+	bin: binary client/tcp-port/data
+	while [not tail? bin/buffer][
+		record: binary/read bin [UI8 UI16 UI16BYTES]
+		plain: decrypt-tls-record server record/3 23
+		take/last plain ;= inner content type
+		append sizes length? plain
+		append data plain
+	]
+	is? reduce [sizes  data == to binary! text] [[16384 3616] #(true)]
 ]
 
 summary
