@@ -223,15 +223,23 @@ prepare-application-data: func [
 prepare-alert-close-notify: func [
     ;; Prepares a close_notify alert message to signal orderly TLS shutdown to the peer.
     ctx [object!]
+    /local message
 ][
-    ;@@ Not used/tested yet! It should be replaced with ALERT-notify with CLOSE as possible type
+    ;@@ Not used yet! It should be replaced with ALERT-notify with CLOSE as possible type
     log-more "alert-close-notify"
-    message: encrypt-tls-record ctx #{0100} ; close notify
-    with ctx [
-        binary/write out [
-            UI8       21               ; protocol type (21=Alert)
-            UI16      :legacy-version  ; protocol version
-            UI16BYTES :message
+    message: #{0100} ;= close_notify (level: warning)
+    either ctx/TLS13? [
+        ;; TLS1.3: real content type (21=Alert) is encrypted with the data
+        prepare-wrapped-record ctx message 21
+    ][
+        ;; TLS1.2: content type is part of the MAC
+        message: encrypt-tls-record/type ctx message 21
+        with ctx [
+            binary/write out [
+                UI8       21               ; protocol type (21=Alert)
+                UI16      :legacy-version  ; protocol version
+                UI16BYTES :message
+            ]
         ]
     ]
 ]

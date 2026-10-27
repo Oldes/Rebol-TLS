@@ -75,6 +75,7 @@ TLS-context: context [
     remote-hs-secret:
     remote-ap-secret:
     remote-IV:          ;; IV of the current read (decrypt) epoch (TLS1.3)
+    locale-IV:          ;; IV of the current write (encrypt) epoch (TLS1.3)
     
     finished-hash:
     handshake-secret:

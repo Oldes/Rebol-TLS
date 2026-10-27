@@ -130,6 +130,7 @@ TLS-key-expansion: func [
             locale-hs-IV:      HKDF-Expand/label :sha locale-hs-secret #{} IV-size + IV-size-dynamic "iv"
             remote-hs-IV:      HKDF-Expand/label :sha remote-hs-secret #{} IV-size + IV-size-dynamic "iv"
             remote-IV:         remote-hs-IV ;; records are decrypted using handshake keys now
+            locale-IV:         locale-hs-IV ;; and encrypted using handshake keys too
             cipher-spec-set: 2
             ;; In TLS1.3 additional data used for AEAD has only 5 bytes
             aad-length: 5
@@ -233,10 +234,9 @@ wrap-record: func [
     if crypt-method != 'CHACHA20-POLY1305 [
         ;; Most AEAD ciphers (AES-GCM, AES-CCM) use IV XOR sequence_number
         
-        ;; Select appropriate IV based on content type:
-        ;; - Application data (23): use application traffic IV
-        ;; - Handshake data (22): use handshake traffic IV  
-        nonce: append clear #{} either type = 23 [locale-ap-IV][locale-hs-IV]
+        ;; IV of the current write epoch (switched together with the encrypt-port key),
+        ;; so it is correct for any content type (also for alerts or post-handshake messages)
+        nonce: append clear #{} locale-IV
         ;; Format write sequence number as 12-byte big-endian value
         ;; (padded with zeros to match IV length)
         seq-bytes: #{000000000000000000000000}
@@ -563,6 +563,7 @@ switch-to-app-encrypt: func [
             init-vector: :locale-ap-IV
             key:         :locale-ap-key
         ]
+        locale-IV: locale-ap-IV
         ;@@ TODO: could be supported in the spec directly, but that is not implemented yet!
         modify encrypt-port 'aad-length :aad-length
         if tag-length > 0 [

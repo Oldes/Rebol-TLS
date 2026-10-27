@@ -707,4 +707,33 @@ client-hello-extensions: func [
 	] []
 ]
 
+
+
+group "Alerts"
+
+--test-- "TLS1.3 close_notify alert is decrypted by the peer" [
+	set [client server] handshake-pair
+	derive-application-traffic-secrets server
+	derive-application-traffic-secrets client
+	switch-to-app-encrypt client
+	switch-to-app-decrypt server
+	prepare-alert-close-notify client
+	record: binary/read binary head client/out/buffer [UI8 UI16 UI16BYTES]
+	is? reduce [
+		record/1                                ;= outer type is always application_data
+		decrypt-tls-record server record/3 23   ;= alert and inner content type (21)
+	] [23 #{010015}]
+]
+
+--test-- "TLS1.2 close_notify alert is decrypted by the peer" [
+	set [client server] tls12-pair
+	prepare-alert-close-notify client
+	record: binary/read binary head client/out/buffer [UI8 UI16 UI16BYTES]
+	is? reduce [
+		record/1
+		decrypt-tls-record server record/3 21
+		server/critical-error
+	] [21 #{0100} #(none)]
+]
+
 summary
