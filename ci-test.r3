@@ -12,6 +12,8 @@ system/options/log/cookies: 0
 try [system/modules/tls: none]
 try [system/schemes/tls: none]
 
+unless value? 'print-hline [print-hline: :print-horizontal-line]
+
 ;; Load local developmnent TLS scheme:
 do %build/prot-tls.reb
 
@@ -24,7 +26,7 @@ foreach url [
 	https://seznam.cz
 	https://github.com
 	https://google.com
-	https://rosettacode.org/wiki/Rosetta_Code ;= supports only TLS1.3
+	https://rosettacode.org/wiki/Rosetta_Code ;= supports only TLS1.3 - blocked from CI!
 	https://www.rebol.com
 	https://codeberg.org ;= sends NEW_SESSION_TICKET in the same fragment like FINISHED
 	https://www.tribunalecatania.it ;= has invalid extension; supports only TLS1.2
@@ -35,14 +37,23 @@ foreach url [
 	print [as-yellow "Trying to read:" as-green url]
 	print-hline
 	try/with [
-		data: read url
+		;; read/all does not throw on HTTP errors: [status headers body]
+		;; so any error here is a TLS (or connection) failure
+		res: read/all url
 		print-hline
-		? data
+		print ["HTTP status:" res/1 "server:" res/2/Server]
+		either res/1 < 400 [
+			? res
+		][
+			;; TLS works, but the server refused the request
+			;; (e.g. Cloudflare's bot protection on GitHub runners)
+			print as-purple ajoin ["TLS OK, HTTP " res/1 " not tested"]
+		]
 		print-hline
 		print "^/^/"
 	][
 		sys/log/error 'TEST err: copy system/state/last-error
-		repend fails [url err] 
+		repend fails [url err]
 	]
 ]
 
