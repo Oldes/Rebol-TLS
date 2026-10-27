@@ -310,4 +310,56 @@ tls12-pair: func [
 	]
 ]
 
+
+group "TLS1.2 ServerKeyExchange"
+
+;; Returns a TLS1.2 client context (after receiving Certificate) and
+;; an ECDHE_ECDSA ServerKeyExchange message signed by the server's key
+ecdsa-key-exchange: func [
+	"Makes a client context and a signed ServerKeyExchange message"
+	/local ctx cert-key params signature
+][
+	ctx: new-TLS-context [
+		key-method:    'ECDHE_ECDSA
+		state-prev:    'CERTIFICATE
+		locale-random: #{CC}
+		remote-random: #{AA}
+		server-certs:  reduce [object [public-key: none]]
+		pub-exp:       'secp256r1
+	]
+	;; server's ECDHE parameters (curve type, named curve, public key)
+	params: binary/write make binary! 200 compose [
+		UI8 3  UI16 0#0017  UI8BYTES (ecdh/public ecdh/init none 'secp256r1)
+	]
+	;; signed using the certificate's key
+	cert-key: ecdh/init none 'secp256r1
+	signature: ecdsa/sign cert-key checksum rejoin [#{CC} #{AA} params/buffer] 'sha256
+	ctx/pub-key: ecdh/public cert-key ;= as in the certificate
+	reduce [
+		ctx
+		binary/write params [UI8 4 UI8 3 UI16BYTES :signature] ;= sha256 + ecdsa
+	]
+]
+
+--test-- "ECDSA signed ServerKeyExchange is accepted" [
+	set [ctx msg] ecdsa-key-exchange
+	decode-server-key-exchange ctx msg/buffer
+	binary? ctx/pre-secret
+]
+
+--test-- "ServerKeyExchange with invalid ECDSA signature is refused" [
+	set [ctx msg] ecdsa-key-exchange
+	msg: head msg/buffer
+	change back tail msg 255 - last msg ;= damage the signature
+	e: try [decode-server-key-exchange ctx msg]
+	all [error? e  did find form e "Decode error"]
+]
+
+--test-- "ServerKeyExchange with extra bytes is refused" [
+	set [ctx msg] ecdsa-key-exchange
+	msg: append head msg/buffer #{00}
+	e: try [decode-server-key-exchange ctx msg]
+	all [error? e  did find form e "Decode error"]
+]
+
 summary

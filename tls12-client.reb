@@ -69,20 +69,20 @@ decode-server-key-exchange: function [
         ]
     ][  ;; By default it is hash/sign pair in TLS1.2
         hash-algorithm:         *HashAlgorithm/name :hash-algorithm
-        sign-algorithm: *ClientCertificateType/name :sign-algorithm
+        sign-algorithm:    *SignatureAlgorithm/name :sign-algorithm
     ]
     log-more ["R[" ctx/seq-read "] Using algorithm:" hash-algorithm "with" sign-algorithm]
 
     key: ctx/server-certs/1/public-key
     switch sign-algorithm [
-        ecdsa_sign [
+        ecdsa [
             log-more "Checking signature using ECDSA"
             ;@@ TODO: rewrite ecdsa/verify to count the hash automatically like it is in rsa/verify now?
             message-hash: checksum verify-data hash-algorithm
             ; test validity:
-            ecdsa/verify/curve ctx/pub-key message-hash signature ctx/pub-exp
+            valid?: ecdsa/verify/curve ctx/pub-key message-hash signature ctx/pub-exp
         ]
-        rsa_sign [
+        rsa [
             log-more "Checking signature using RSA"
             rsa-key: apply :rsa-init ctx/server-certs/1/public-key/rsaEncryption
             valid?: rsa/verify/hash rsa-key verify-data signature hash-algorithm
@@ -100,7 +100,7 @@ decode-server-key-exchange: function [
 
     log-more "Signature valid!"
     unless tail? msg/buffer [
-        len: ends - pos
+        len: length? msg/buffer
         binary/read msg [extra: BYTES :len]
         log-error ["Extra" len "bytes at the end of message:" ellipsize form extra 40]
         cause-TLS-error 'Decode_error

@@ -197,6 +197,15 @@ Rebol [
 
 ] 'TLSSignatureScheme
 
+;; TLS1.2 SignatureAlgorithm (used in ServerKeyExchange)
+;@@ https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.1.4.1
+*SignatureAlgorithm: enum [
+    anonymous: 0
+    rsa:       1
+    dsa:       2
+    ecdsa:     3
+] 'TLSSignatureAlgorithm
+
 *ClientCertificateType: enum [
     rsa_sign:                  1
     dss_sign:                  2
