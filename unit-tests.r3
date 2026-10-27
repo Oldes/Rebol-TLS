@@ -204,4 +204,53 @@ client-key: ecdh/public ecdh/init none 'curve25519
 ]
 
 
+group "TLS1.3 record protection"
+
+;; Returns client and server contexts with derived TLS1.3 handshake keys
+;; (the state right after both sides processed ServerHello)
+handshake-pair: func [
+	"Makes a TLS1.3 client/server context pair with matching handshake keys"
+	/local pair transcript ctx
+][
+	transcript: [CLIENT_HELLO #{0100000401020304} SERVER_HELLO #{0200000405060708}]
+	pair: copy []
+	foreach server? [#(false) #(true)][
+		ctx: make TLS-context [
+			TLS13?:           true
+			version:          0#0304
+			cipher-suite:     0#1301 ;= TLS_AES_128_GCM_SHA256
+			context-messages: copy/deep transcript
+		]
+		ctx/server?: server?
+		TLS-init-cipher-suite ctx
+		ctx/pre-secret: #{000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F}
+		TLS-key-expansion ctx
+		append pair ctx
+	]
+	pair
+]
+
+--test-- "server decrypts client Finished after deriving application secrets" [
+	set [client server] handshake-pair
+	;; server derives application secrets right after sending its Finished
+	derive-application-traffic-secrets server
+	msg: #{1400000401020304}
+	record: wrap-record client msg 22
+	is? decrypt-tls-record server record 23 join msg #{16}
+]
+
+--test-- "application data after switching to application keys" [
+	set [client server] handshake-pair
+	derive-application-traffic-secrets server
+	record: wrap-record client #{1400000401020304} 22  ;= client Finished
+	decrypt-tls-record server record 23
+	derive-application-traffic-secrets client           ;= client switches decrypt
+	switch-to-app-encrypt client                        ;= in prepare-finished-message
+	switch-to-app-decrypt server                        ;= after client Finished
+	msg: to binary! "GET / HTTP/1.1"
+	record: wrap-record client msg 23
+	is? decrypt-tls-record server record 23 join msg #{17}
+]
+
+
 summary

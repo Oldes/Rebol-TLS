@@ -129,6 +129,7 @@ TLS-key-expansion: func [
             remote-hs-key:     HKDF-Expand/label :sha remote-hs-secret #{} crypt-size "key"
             locale-hs-IV:      HKDF-Expand/label :sha locale-hs-secret #{} IV-size + IV-size-dynamic "iv"
             remote-hs-IV:      HKDF-Expand/label :sha remote-hs-secret #{} IV-size + IV-size-dynamic "iv"
+            remote-IV:         remote-hs-IV ;; records are decrypted using handshake keys now
             cipher-spec-set: 2
             ;; In TLS1.3 additional data used for AEAD has only 5 bytes
             aad-length: 5
@@ -379,7 +380,8 @@ decrypt-tls-record: func [
                 UI16  :length
             ]
             ; TLS 1.3 nonce: IV XOR sequence number
-            nonce: append clear #{} any [remote-ap-IV remote-hs-IV]
+            ;; (remote-IV is switched together with the decrypt-port key)
+            nonce: append clear #{} remote-IV
             seq-bytes: #{00000000 0000000000000000}
             binary/write seq-bytes [atz 4 ui64be :seq-read]
 
@@ -573,6 +575,7 @@ switch-to-app-decrypt: func [
             init-vector: :remote-ap-IV
             key:         :remote-ap-key
         ]
+        remote-IV: remote-ap-IV
         ;@@ TODO: could be supported in the spec directly, but that is not implemented yet!
         modify decrypt-port 'aad-length :aad-length
         if tag-length > 0 [

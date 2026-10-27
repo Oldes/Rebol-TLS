@@ -70,6 +70,7 @@ TLS-context: context [
     remote-random:
     remote-hs-secret:
     remote-ap-secret:
+    remote-IV:          ;; IV of the current read (decrypt) epoch (TLS1.3)
     
     finished-hash:
     handshake-secret:
