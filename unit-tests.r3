@@ -528,4 +528,19 @@ client-hello: func [
 	all [error? e  did find form e "Handshake failure"]
 ]
 
+
+
+group "Sources"
+
+--test-- "sources contain no debug prints" [
+	bad: copy []
+	foreach file read %./ [
+		if all [find/match file "tls" %.reb = suffix? file][
+			;; `load` drops comments, so only active code is checked
+			if find mold load file "?? " [append bad file]
+		]
+	]
+	is? bad []
+]
+
 summary

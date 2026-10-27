@@ -142,8 +142,6 @@ prepare-server-hello: function [
                 ctx/hello-retry-request: none
             ][
                 change-state ctx 'SERVER_HELLO_RETRY
-                ;?? supported-groups
-                ;?? ctx/extensions/supported_groups
                 hello-retry-request: true
                 ;; first group in the server's preference order, which the client supports too
                 ecdh-group: all [
@@ -398,14 +396,12 @@ decode-client-hello: function [
     ;; Choose the first cipher suite (in the client's preference order), which is supported
     ;; and which can be used with TLS1.3 (TLS1.3 cipher suites are 0x13xx)
     client-cipher-suites: decode-list *Cipher-suite :cipher-suites _
-    ;?? client-cipher-suites
     foreach cipher client-cipher-suites [
         if all [
             find suported-cipher-suites cipher
             0#1300 == (0#FF00 and *Cipher-suite/:cipher)
         ][
             ; store as an integer
-            ?? cipher
             ctx/cipher-suite: *Cipher-suite/:cipher
             log-info ["Server choose cipher:" as-yellow ctx/cipher-suite]
             TLS-init-cipher-suite ctx
