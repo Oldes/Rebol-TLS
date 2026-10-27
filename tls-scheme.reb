@@ -194,7 +194,7 @@ prepare-application-data: func [
                 UI16      :legacy-version  ; protocol version
                 UI16BYTES :message 
             ]
-            ++ seq-write
+            ;; (seq-write is incremented in encrypt-tls-record)
         ]
     ]
 ]

@@ -267,4 +267,47 @@ group "TLS-context"
 ]
 
 
+group "TLS1.2 record protection"
+
+;; Returns client and server contexts with matching TLS1.2 keys
+;; (the state right after the key exchange)
+tls12-pair: func [
+	"Makes a TLS1.2 client/server context pair with matching keys"
+	/local pair ctx
+][
+	pair: copy []
+	foreach server? [#(false) #(true)][
+		ctx: new-TLS-context [
+			version:      0#0303
+			cipher-suite: 0#C02F ;= TLS_ECDHE_RSA_WITH_AES-128-GCM_SHA256
+			pre-secret:   #{000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F}
+		]
+		ctx/server?: server?
+		ctx/locale-random: either server? [#{AA}][#{CC}]
+		ctx/remote-random: either server? [#{CC}][#{AA}]
+		TLS-init-cipher-suite ctx
+		TLS-key-expansion ctx
+		append pair ctx
+	]
+	pair
+]
+
+--test-- "TLS1.2 application data records are numbered sequentially" [
+	set [client server] tls12-pair
+	prepare-application-data client "first"
+	prepare-application-data client "second"
+	records: binary/read binary head client/out/buffer [
+		UI8 UI16 UI16BYTES
+		UI8 UI16 UI16BYTES
+	]
+	result: reduce [
+		to string! decrypt-tls-record server records/3 23
+		to string! decrypt-tls-record server records/6 23
+	]
+	all [
+		none? server/critical-error
+		is? result ["first" "second"]
+	]
+]
+
 summary
