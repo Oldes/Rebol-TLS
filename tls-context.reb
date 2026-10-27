@@ -139,7 +139,7 @@ TLS-init-cipher-suite: func [
     cipher: ctx/cipher-suite
     suite: *Cipher-suite/name :cipher
     unless suite [
-        log-error ["Unknown cipher suite:" enbase suite 16]
+        log-error ["Unknown cipher suite:" skip to binary! cipher 6]
         return false
     ]
     unless find suported-cipher-suites suite [

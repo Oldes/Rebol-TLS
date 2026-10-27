@@ -447,4 +447,13 @@ sys/make-scheme [
 	is? reduce [data ctx/critical-error value? 'critical-error] [#(none) Bad_record_MAC #(false)]
 ]
 
+
+
+group "TLS-init-cipher-suite"
+
+--test-- "unknown cipher suite is refused without error" [
+	ctx: new-TLS-context [cipher-suite: 0#009F] ;= TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 (not in *Cipher-suite)
+	is? TLS-init-cipher-suite ctx false
+]
+
 summary
