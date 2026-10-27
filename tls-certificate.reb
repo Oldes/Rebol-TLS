@@ -43,6 +43,53 @@ check-certificate-dates: func [
     ]
 ]
 
+host-matches?: func [
+    ;; Returns TRUE if the host name matches the name from a certificate.
+    ;; Wildcard is allowed only as the whole left-most label: https://datatracker.ietf.org/doc/html/rfc6125#section-6.4.3
+    host [string!]
+    name [string!]
+    /local pos
+][
+    either find/match name "*." [
+        to logic! all [
+            pos: find host #"."
+            pos <> host                ;= the left-most label is not empty
+            (next pos) = skip name 2   ;= the rest must be same (case-insensitive)
+        ]
+    ][  host = name ]
+]
+
+check-certificate-host: func [
+    ;; Checks that the certificate is issued for the host (subjectAltName DNS names, or commonName if there are none).
+    ctx  [object!]
+    cert [object!]
+    host [string!]
+    /local names
+][
+    if #"." = last host [host: copy/part host (length? host) - 1] ;= absolute domain name
+    names: any [
+        all [
+            block? cert/extensions
+            block? names: select cert/extensions 'subjectAltName ;= [critical? [names]]
+            block? names: last names
+            not empty? names
+            names
+        ]
+        all [
+            block? cert/subject
+            string? names: select cert/subject 'commonName
+            reduce [names]
+        ]
+        []
+    ]
+    foreach name names [
+        if all [string? name  host-matches? host name][exit]
+    ]
+    certificate-failure ctx 'Bad_certificate [
+        "Certificate is not valid for host:" host "(names:" mold/flat names ")"
+    ]
+]
+
 decode-certificates: function [
     ;; Parses a TLS CERTIFICATE handshake message and extracts and verifies server certificate(s).
     ctx [object!]
@@ -74,6 +121,17 @@ decode-certificates: function [
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
         if verify-certificates [check-certificate-dates ctx cert]
     ]
+
+    ;; The server's certificate must be issued for the requested host
+    if all [
+        verify-certificates
+        port? ctx/tcp-port
+        host: ctx/tcp-port/spec/host
+        not empty? ctx/server-certs
+    ][
+        check-certificate-host ctx first ctx/server-certs form host
+    ]
+    
     ;log-debug ["Received" length? ctx/server-certs "server certificates."]
     ;? ctx/server-certs
     try/with [

@@ -652,6 +652,13 @@ server/awake: func [event [event!] /local client][
 	is? reduce [result server-events] ["Hello" [accept client-close]]
 ]
 
+--test-- "loopback handshake passes all certificate checks with `verify: error`" [
+	tls-config [verify: error]
+	result: attempt [to string! read https://localhost:18436/]
+	tls-config [verify: log]
+	is? result "Hello"
+]
+
 --test-- "closing the server port stops listening" [
 	close server
 	is? reduce [
@@ -853,11 +860,14 @@ decode-certs-with: func [
 	"Decodes certificates using given verify mode"
 	mode
 	ders [block!]
+	/host "Connection to the given host"
+	 name [string!]
 	/local ctx entries msg
 ][
 	tls-config compose [verify: (mode)]
 	entries: encode-certificate-entries ders
 	ctx: new-TLS-context [TLS13?: true state-prev: 'ENCRYPTED_EXTENSIONS]
+	if host [ctx/tcp-port: make port! [scheme: 'tcp host: none port: 443] ctx/tcp-port/spec/host: name]
 	msg: binary/write make binary! 5000 [UI8 0 UI24BYTES :entries]
 	decode-certificates ctx msg/buffer
 	ctx
@@ -891,6 +901,50 @@ expired-der: select decode 'pkix read %certs/Expired.crt 'binary ;= valid only u
 	ctx: decode-certs-with 'error reduce [der] ;= certs/MyCertificate.crt (valid until 31-Dec-2049)
 	tls-config [verify: log]
 	is? ctx/certificate-errors none
+]
+
+--test-- "host name matching" [
+	bad: copy []
+	foreach [host name expected] [
+		"localhost"       "localhost"       #(true)
+		"LocalHost"       "localhost"       #(true)  ;= case-insensitive
+		"a.example.com"   "*.example.com"   #(true)
+		"example.com"     "*.example.com"   #(false) ;= wildcard needs one label
+		"a.b.example.com" "*.example.com"   #(false) ;= ... and only one
+		".example.com"    "*.example.com"   #(false)
+		"a.example.com"   "a*.example.com"  #(false) ;= only whole left-most label wildcard
+		"example.com"     "example.org"     #(false)
+	][
+		unless expected == host-matches? host name [append bad reduce [host name]]
+	]
+	is? bad []
+]
+
+--test-- "subjectAltName names are used (not commonName), trailing dot ignored" [
+	cert: object [subject: [commonName: "other.com"] extensions: [subjectAltName [#(false) ["www.example.com" "*.example.org"]]]]
+	ctx: new-TLS-context []
+	tls-config [verify: log]
+	foreach host ["www.example.com" "a.example.org" "www.example.com."][check-certificate-host ctx cert host]
+	ok?: none? ctx/certificate-errors
+	check-certificate-host ctx cert "other.com"
+	is? reduce [ok? length? ctx/certificate-errors] [#(true) 1]
+]
+
+--test-- "commonName is used, when there is no subjectAltName" [
+	cert: object [subject: [commonName: "example.com"] extensions: none]
+	ctx: new-TLS-context []
+	check-certificate-host ctx cert "example.com"
+	ok?: none? ctx/certificate-errors
+	check-certificate-host ctx cert "www.example.com"
+	is? reduce [ok? length? ctx/certificate-errors] [#(true) 1]
+]
+
+--test-- "certificate for other host is refused with `verify: error`" [
+	ctx: decode-certs-with/host 'error reduce [der] "localhost" ;= certs/MyCertificate.crt is for localhost
+	ok?: none? ctx/certificate-errors
+	e: try [decode-certs-with/host 'error reduce [der] "example.com"]
+	tls-config [verify: log]
+	is? reduce [ok?  did all [error? e  find form e "Bad certificate"]] [#(true) #(true)]
 ]
 
 --test-- "certificate checks are skipped with `verify: none`" [
