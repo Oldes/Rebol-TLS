@@ -154,10 +154,12 @@ client-key: ecdh/public ecdh/init none 'curve25519
 
 --test-- "HelloRetryRequest asks for a group supported by the client" [
 	ctx: make TLS-context [
-		server?:      true
-		session-id:   #{}
-		cipher-suite: 0#1301
-		extensions:   #[
+		server?:          true
+		session-id:       #{}
+		cipher-suite:     0#1301
+		hash-type:        'SHA256
+		context-messages: reduce ['CLIENT_HELLO #{01000000}]
+		extensions:       #[
 			supported_versions: [0#0304 0#0303]
 			supported_groups:   [secp192r1 secp256r1] ;= server does not use secp192r1
 			key_share:          [secp192r1 #{04}]
@@ -180,6 +182,25 @@ client-key: ecdh/public ecdh/init none 'curve25519
 	]
 	e: try [prepare-server-hello ctx]
 	all [error? e  did find form e "Insufficient security"]
+]
+
+--test-- "HelloRetryRequest replaces ClientHello1 in transcript with message_hash" [
+	ch1: #{0100000401020304} ;= fake ClientHello1
+	ctx: make TLS-context [
+		server?:          true
+		session-id:       #{}
+		cipher-suite:     0#1301
+		hash-type:        'SHA256
+		state:            'CLIENT_HELLO
+		context-messages: reduce ['CLIENT_HELLO copy ch1]
+		extensions:       #[
+			supported_versions: [0#0304 0#0303]
+			supported_groups:   [secp192r1 secp256r1]
+			key_share:          [secp192r1 #{04}]
+		]
+	]
+	prepare-server-hello ctx
+	is? ctx/context-messages/2 join #{FE000020} checksum ch1 'sha256
 ]
 
 

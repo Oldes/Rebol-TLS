@@ -142,17 +142,28 @@ prepare-server-hello: function [
                 ctx/hello-retry-request: none
             ][
                 change-state ctx 'SERVER_HELLO_RETRY
-                ?? supported-groups
-                ?? ctx/extensions/supported_groups
+                ;?? supported-groups
+                ;?? ctx/extensions/supported_groups
                 hello-retry-request: true
-                ecdh-group: attempt [
-                    curve: first union supported-groups ctx/extensions/supported_groups
+                ;; first group in the server's preference order, which the client supports too
+                ecdh-group: all [
+                    block? extensions/supported_groups
+                    curve: first intersect supported-groups extensions/supported_groups
                     *EllipticCurves/:curve
                 ]
                 unless ecdh-group [
                     cause-TLS-error 'Insufficient_security ;@@ or other?
                 ]
                 log-info ["Server requests HelloRetry with elliptic group:" ecdh-group]
+                ;; Transcript hash -> https://datatracker.ietf.org/doc/html/rfc8446#section-4.4.1
+                ;; Replace CLIENT_HELLO message with a special synthetic handshake message of handshake type
+                ;; "message_hash" containing Hash(ClientHello1)
+                hash: checksum context-messages/2 hash-type
+                binary/write clear context-messages/2 [
+                    UI8 254 ;=message_hash
+                    UI16 0
+                    UI8BYTES :hash
+                ]
                 binary/write key_share [
                     UI16      :ecdh-group
                 ]
