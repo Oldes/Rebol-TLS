@@ -5,9 +5,11 @@ Rebol [
 ]
 
 TLS-context: context [
-    in:  binary 16104 ;input binary codec
-    out: binary 16104 ;output binary codec
-    bin: binary 64    ;temporary binary
+    ;; Binary codecs are objects, which are not cloned by `make`,
+    ;; so these are created for each connection in `new-TLS-context`!
+    in:                ;input binary codec
+    out:               ;output binary codec
+    bin: none          ;temporary binary
 
     tcp-port:
     tls-port:
@@ -97,6 +99,18 @@ TLS-context: context [
     key-data:
     hello-retry-request: 
         none
+]
+
+new-TLS-context: func [
+    ;; Makes a new TLS context with its own binary codecs.
+    spec [block!]
+    /local ctx
+][
+    ctx: make TLS-context spec
+    ctx/in:  binary 16104
+    ctx/out: binary 16104
+    ctx/bin: binary 64
+    ctx
 ]
 
 ;; Maps for storing reusable key schedule constants per hash algorithm:

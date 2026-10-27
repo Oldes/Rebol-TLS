@@ -18,7 +18,7 @@ TLS-server-awake: func [
             ;; Obtain client connection details
             info: query port [remote-ip remote-port]
             ;; Initialize a new TLS context for this client
-            port/extra: make TLS-context [
+            port/extra: new-TLS-context [
                 tcp-port: port                      ;; Underlying TCP port
                 tls-port: serv/parent               ;; Parent TLS port
                 server?:  true                      ;; Mark context as server side

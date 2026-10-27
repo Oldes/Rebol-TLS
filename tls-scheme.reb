@@ -37,7 +37,7 @@ do-TLS-open: func [
 
     either spec/host [
         ;- CLIENT connection ---------------------------
-        port/extra: conn/extra: make TLS-context [
+        port/extra: conn/extra: new-TLS-context [
             tcp-port: conn
             tls-port: port
             version: *Protocol-version/TLS1.2

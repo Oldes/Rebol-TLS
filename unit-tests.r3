@@ -95,7 +95,7 @@ count-of: func ["Counts occurrences of a value in a series" series pattern /loca
 group "prepare-server-hello"
 
 --test-- "extensions are not accumulated across calls" [
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:      true
 		session-id:   #{}
 		cipher-suite: 0#C02F ;= TLS_ECDHE_RSA_WITH_AES-128-GCM_SHA256 (TLS1.2 path)
@@ -120,13 +120,13 @@ server-hello-extensions: func [
 		UI16 BYTES 32 UI8BYTES UI16 UI8
 		UI16BYTES     ;= extensions
 	]
-	decode-extensions make TLS-context [] last data
+	decode-extensions new-TLS-context [] last data
 ]
 
 client-key: ecdh/public ecdh/init none 'curve25519
 
 --test-- "TLS1.2 echoes point formats and renegotiation info" [
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:      true
 		session-id:   #{}
 		cipher-suite: 0#C02F
@@ -137,7 +137,7 @@ client-key: ecdh/public ecdh/init none 'curve25519
 ]
 
 --test-- "TLS1.3 sends only supported_versions and key_share" [
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:      true
 		session-id:   #{}
 		cipher-suite: 0#1301
@@ -153,7 +153,7 @@ client-key: ecdh/public ecdh/init none 'curve25519
 ]
 
 --test-- "HelloRetryRequest asks for a group supported by the client" [
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:          true
 		session-id:       #{}
 		cipher-suite:     0#1301
@@ -170,7 +170,7 @@ client-key: ecdh/public ecdh/init none 'curve25519
 ]
 
 --test-- "HelloRetryRequest without a common group fails" [
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:      true
 		session-id:   #{}
 		cipher-suite: 0#1301
@@ -186,7 +186,7 @@ client-key: ecdh/public ecdh/init none 'curve25519
 
 --test-- "HelloRetryRequest replaces ClientHello1 in transcript with message_hash" [
 	ch1: #{0100000401020304} ;= fake ClientHello1
-	ctx: make TLS-context [
+	ctx: new-TLS-context [
 		server?:          true
 		session-id:       #{}
 		cipher-suite:     0#1301
@@ -215,7 +215,7 @@ handshake-pair: func [
 	transcript: [CLIENT_HELLO #{0100000401020304} SERVER_HELLO #{0200000405060708}]
 	pair: copy []
 	foreach server? [#(false) #(true)][
-		ctx: make TLS-context [
+		ctx: new-TLS-context [
 			TLS13?:           true
 			version:          0#0304
 			cipher-suite:     0#1301 ;= TLS_AES_128_GCM_SHA256
@@ -250,6 +250,20 @@ handshake-pair: func [
 	msg: to binary! "GET / HTTP/1.1"
 	record: wrap-record client msg 23
 	is? decrypt-tls-record server record 23 join msg #{17}
+]
+
+
+
+group "TLS-context"
+
+--test-- "connections do not share I/O buffers" [
+	spec: [server?: true session-id: #{} cipher-suite: 0#C02F extensions: #[]]
+	a: new-TLS-context spec
+	b: new-TLS-context spec
+	prepare-server-hello a
+	hello: copy head a/out/buffer
+	prepare-server-hello b
+	is? head a/out/buffer hello
 ]
 
 
