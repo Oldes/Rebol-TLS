@@ -862,7 +862,7 @@ decode-certs-with: func [
 	decode-certificates ctx msg/buffer
 	ctx
 ]
-expired-der: der ;= certs/MyCertificate.crt is valid only until 14-Feb-2023
+expired-der: select decode 'pkix read %certs/Expired.crt 'binary ;= valid only until 14-Feb-2023
 
 --test-- "certificate validity is checked at the given time" [
 	cert: object [valid-from: 1-Jan-2020/0:00 valid-to: 1-Jan-2120/0:00 subject: [commonName: "test"]]
@@ -885,6 +885,12 @@ expired-der: der ;= certs/MyCertificate.crt is valid only until 14-Feb-2023
 	e: try [decode-certs-with 'error reduce [expired-der]]
 	tls-config [verify: log]
 	all [error? e  did find form e "Certificate expired"]
+]
+
+--test-- "valid test certificate passes the checks" [
+	ctx: decode-certs-with 'error reduce [der] ;= certs/MyCertificate.crt (valid until 31-Dec-2049)
+	tls-config [verify: log]
+	is? ctx/certificate-errors none
 ]
 
 --test-- "certificate checks are skipped with `verify: none`" [

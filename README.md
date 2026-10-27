@@ -114,7 +114,7 @@ The project is organized into several Rebol script files, each handling a specif
 -   `tls-utils.reb`: Utility functions used across the TLS implementation.
 -   `tls-constants.reb`: Constants used in the TLS protocol (message types, handshake types, etc.).
 -   `tls12-client.reb`: Client-side specific handshake logic for TLS 1.2.
--   `certs/`: Self-signed test certificate and private key (`MyCertificate.crt`, `MyKey.key`) used by the server example and tests.
+-   `certs/`: Self-signed test certificate for `localhost` and its private key (`MyCertificate.crt`, `MyKey.key`) used by the server example and tests, and an expired certificate (`Expired.crt`) used by tests.
 -   `legacy/`: The legacy TLS 1.2 implementation (`prot-tls12.reb`).
 -   `build/`: The build result (`prot-tls.reb`).
 -   `client.r3`: Example script demonstrating TLS client usage.
