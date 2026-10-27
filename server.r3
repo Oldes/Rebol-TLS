@@ -20,8 +20,9 @@ server: open [
 	config: [
 		;; TLS server requires valid certificate with a public key
 		;; and its private key!
-		;; These 2 are generated using OpenSSL command:
-		;- openssl req -new -newkey rsa:4096 -x509 -sha256 -days 365 -nodes -out MyCertificate.crt -keyout MyKey.key
+		;; These 2 are generated using OpenSSL command (valid until 31-Dec-2049, as Rebol's
+		;; CRT codec does not decode dates after the year 2049 yet):
+		;- openssl req -x509 -newkey rsa:4096 -sha256 -days 8466 -nodes -keyout MyKey.key -out MyCertificate.crt -subj "/O=Rebol3/OU=TestCert/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 		;; For public use you may need authorized certificate (https://letsencrypt.org/)
 		certificates: %certs/MyCertificate.crt
 		private-key:  %certs/MyKey.key
