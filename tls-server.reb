@@ -164,9 +164,7 @@ prepare-server-hello: function [
 
         ;?? session-id
         ;?? extensions
-        server-extensions: #{
-        ;   00000000         ; server_name
-        }
+        server-extensions: make binary! 16 ;; must be a fresh binary per call
         if find extensions 'ec_point_formats [
             append server-extensions #{000B000403000102}
         ]
