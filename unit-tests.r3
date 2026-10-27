@@ -471,4 +471,47 @@ group "TLS-init-cipher-suite"
 	is? bad []
 ]
 
+
+
+group "decode-client-hello"
+
+;; Returns ClientHello message body offering TLS1.3 or only TLS1.2
+client-hello: func [
+	"Makes a ClientHello message body"
+	tls13? [logic!]
+	/local ext key bin
+][
+	ext: make binary! 100
+	key: ecdh/public ecdh/init none 'curve25519
+	binary/write ext [UI16 10  UI16 4  UI16 2  UI16 0#001D] ;= supported_groups: curve25519
+	if tls13? [
+		binary/write tail ext compose [
+			UI16 43  UI16 3  UI8 2  UI16 0#0304                   ;= supported_versions: TLS1.3
+			UI16 51  UI16 (6 + length? key)  UI16 (4 + length? key) ;= key_share
+			UI16 0#001D  UI16BYTES :key
+		]
+	]
+	bin: binary/write make binary! 200 [
+		UI16      0#0303
+		BYTES     #{0000000000000000000000000000000000000000000000000000000000000000}
+		UI8BYTES  #{}
+		UI16BYTES #{1301C02F}  ;= TLS_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		UI8BYTES  #{00}
+		UI16BYTES :ext
+	]
+	head bin/buffer
+]
+
+--test-- "server accepts ClientHello offering TLS1.3" [
+	ctx: new-TLS-context [server?: true]
+	decode-client-hello ctx client-hello true
+	is? select ctx/extensions 'supported_versions [0#0304]
+]
+
+--test-- "server refuses ClientHello without TLS1.3" [
+	ctx: new-TLS-context [server?: true]
+	e: try [decode-client-hello ctx client-hello false]
+	all [error? e  did find form e "Protocol version"]
+]
+
 summary

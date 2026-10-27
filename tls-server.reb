@@ -419,6 +419,14 @@ decode-client-hello: function [
     ]
     ;? extensions
     ctx/extensions: decode-extensions ctx :extensions
+    ;; The server side is implemented only for TLS1.3 (the TLS1.2 server path is not finished)
+    unless all [
+        block? ctx/extensions/supported_versions
+        find ctx/extensions/supported_versions 0#0304
+    ][
+        log-error "Client does not support TLS1.3!"
+        cause-TLS-error 'Protocol_version
+    ]
 
     if all [
         block? ctx/extensions/supported_groups
