@@ -96,7 +96,13 @@ do-TLS-close: func [
     port [port!] /local ctx parent
 ][
     log-debug "CLOSE"
-    unless ctx: port/extra [return port]
+    unless ctx: port/extra [
+        ;; listening (server) port
+        if all [object? port/state port? port/state/TCP-port][
+            close port/state/TCP-port
+        ]
+        return port
+    ]
     parent: port/parent
     log-debug "Closing port/extra/tcp-port"
     close ctx/tcp-port
@@ -113,6 +119,16 @@ do-TLS-close: func [
         insert system/ports/system make event! [type: 'close port: parent]
     ]
     port
+]
+
+TLS-tcp-port: func [
+    ;; Returns the underlying TCP port of a TLS port (connection or listening server port).
+    port [port!]
+][
+    any [
+        all [port/extra port/extra/tcp-port]
+        all [object? port/state port/state/TCP-port]
+    ]
 ]
 
 do-TLS-read: func [
@@ -289,8 +305,8 @@ sys/make-scheme [
         open:    :do-TLS-open
         close:   :do-TLS-close
         pick:    :do-TLS-pick
-        query:   func [port [port!]][all [port/extra query port/extra/tcp-port]]
-        open?:   func [port [port!]][all [port/extra open? port/extra/tcp-port]]
+        query:   func [port [port!] field /mode /local tcp][all [tcp: TLS-tcp-port port  query tcp :field]]
+        open?:   func [port [port!] /local tcp][did all [tcp: TLS-tcp-port port  open? tcp]]
         copy:    func [port [port!]][if port/data [copy port/data]]
         length?: func [port [port!]][either port/data [length? port/data][0]]
     ]

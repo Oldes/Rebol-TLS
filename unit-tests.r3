@@ -554,10 +554,15 @@ server: open [
 ]
 server-events: copy []
 close-on-wrote?: true
+client-info: none
+use-mode?: false
 server/awake: func [event [event!] /local client][
 	append server-events event/type
 	if event/type = 'accept [
 		client: first event/port
+		client-info: attempt either use-mode? [
+			[query/mode client [remote-ip: local-port:]]
+		][	[query client [remote-ip: local-port:]] ]
 		client/awake: func [event [event!] /local port][
 			port: event/port
 			switch event/type [
@@ -580,6 +585,21 @@ server/awake: func [event [event!] /local client][
 	is? attempt [to string! read https://localhost:18436/] "Hello"
 ]
 
+--test-- "query on the server port and on the client connection" [
+	is? reduce [
+		attempt [query server 'local-port]
+		client-info
+	] [18436 [remote-ip: 127.0.0.1 local-port: 18436]]
+]
+
+--test-- "query/mode (deprecated) on the client connection" [
+	client-info: none
+	use-mode?: true
+	attempt [read https://localhost:18436/]
+	use-mode?: false
+	is? client-info [remote-ip: 127.0.0.1 local-port: 18436]
+]
+
 --test-- "server handles next connection; clients don't send events to the server port" [
 	clear server-events
 	is? reduce [
@@ -595,6 +615,14 @@ server/awake: func [event [event!] /local client][
 	wait 0.5 ;= let the server process client's close
 	close-on-wrote?: true
 	is? reduce [result server-events] ["Hello" [accept client-close]]
+]
+
+--test-- "closing the server port stops listening" [
+	close server
+	is? reduce [
+		open? server
+		error? try [read https://localhost:18436/]
+	] [#(false) #(true)]
 ]
 
 --test-- "data received with client's FINISHED are reported on the first read" [
