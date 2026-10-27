@@ -41,7 +41,7 @@ foreach url [
 		;; so any error here is a TLS (or connection) failure
 		res: read/all url
 		print-hline
-		print ["HTTP status:" res/1 "server:" res/2/Server]
+		print ["HTTP status:" res/1 "server:" select res/2 'Server]
 		either res/1 < 400 [
 			? res
 		][
