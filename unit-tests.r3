@@ -542,4 +542,72 @@ group "Sources"
 	is? bad []
 ]
 
+
+
+group "TLS server (loopback)"
+
+;; A minimal HTTP-like application using the TLS server port like a TCP server port
+server: open [
+	scheme: 'tls
+	port:   18436
+	config: [certificates: %certs/MyCertificate.crt private-key: %certs/MyKey.key]
+]
+server-events: copy []
+close-on-wrote?: true
+server/awake: func [event [event!] /local client][
+	append server-events event/type
+	if event/type = 'accept [
+		client: first event/port
+		client/awake: func [event [event!] /local port][
+			port: event/port
+			switch event/type [
+				read [
+					either find port/data #{0D0A0D0A} [
+						write port "HTTP/1.1 200 OK^M^/Content-Length: 5^M^/Connection: close^M^/^M^/Hello"
+					][	read port ]
+				]
+				wrote [either close-on-wrote? [close port][read port]] ;= keep-alive like
+				close [append server-events 'client-close  close port]
+			]
+			false
+		]
+		read client
+	]
+	false
+]
+
+--test-- "client reads response from the TLS server" [
+	is? attempt [to string! read https://localhost:18436/] "Hello"
+]
+
+--test-- "server handles next connection; clients don't send events to the server port" [
+	clear server-events
+	is? reduce [
+		attempt [to string! read https://localhost:18436/]
+		server-events
+	] ["Hello" [accept]]
+]
+
+--test-- "connection closed by the client is reported to the application, not to the server" [
+	clear server-events
+	close-on-wrote?: false
+	result: attempt [to string! read https://localhost:18436/]
+	wait 0.5 ;= let the server process client's close
+	close-on-wrote?: true
+	is? reduce [result server-events] ["Hello" [accept client-close]]
+]
+
+--test-- "data received with client's FINISHED are reported on the first read" [
+	events: copy []
+	app: make port! [scheme: 'test-sink]
+	app/awake: func [event [event!]][append events reduce [event/type copy event/port/data] true]
+	ctx: new-TLS-context [server?: true unread?: true]
+	append ctx/port-data "GET / HTTP/1.1^M^/^M^/"
+	port: make port! [scheme: 'tls]
+	port/extra: ctx
+	port/parent: app ;= events are delivered to the parent's awake
+	do-TLS-read port
+	is? reduce [events ctx/unread?] reduce [reduce ['read to binary! "GET / HTTP/1.1^M^/^M^/"] false]
+]
+
 summary

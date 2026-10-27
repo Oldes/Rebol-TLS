@@ -55,6 +55,7 @@ do-TLS-open: func [
             private-key:  none
             elliptic-curves: decode-list *EllipticCurves :supported-elliptic-curves _
             version: *Protocol-version/TLS1.2
+            accepted: make block! 4 ;; client TLS ports with finished handshake (see `pick`)
         ]
         ;? spec
         if config: select spec 'config [
@@ -76,20 +77,6 @@ do-TLS-open: func [
                 either handle? key [
                     port/state/private-key: key
                 ][  log-error ["Failed to import private key:" key] ]
-            ]
-        ]
-        port/actor: context [
-            On-Read: func [port [port!] /local data][
-                log-debug "TLS On-Read"
-                probe to string! data: port/extra/port-data
-                either empty? data [
-                    do-TLS-read port
-                ][
-                    do-TLS-write port "HTTP/1.1 200 OK^M^/Content-type: text/plain^M^/^M^/Hello from Rebol using TLS v1.3"
-                ]
-            ]
-            On-Wrote: func [port [port!]][
-                dispatch-event 'close port
             ]
         ]
         conn/parent: port
@@ -130,11 +117,31 @@ do-TLS-close: func [
 
 do-TLS-read: func [
     ;; Handles a read event for a TLS port, triggering record receive from the underlying TCP port.
-    port [port!]
+    port [port!] /local ctx
 ][
     log-debug "READ"
-    read port/extra/tcp-port
+    ctx: port/extra
+    either ctx/unread? [
+        ;; data were already received (with client's FINISHED), so just report them
+        ctx/unread?: false
+        port/data: ctx/port-data
+        dispatch-event 'read port
+    ][
+        read ctx/tcp-port
+    ]
     port
+]
+
+do-TLS-pick: func [
+    ;; Returns the next accepted client connection of a TLS server port (like `first` on a TCP server).
+    port [port!]
+    index
+][
+    all [
+        object? port/state
+        block? port/state/accepted
+        take port/state/accepted
+    ]
 ]
 
 do-TLS-write: func [
@@ -281,6 +288,7 @@ sys/make-scheme [
         write:   :do-TLS-write
         open:    :do-TLS-open
         close:   :do-TLS-close
+        pick:    :do-TLS-pick
         query:   func [port [port!]][all [port/extra query port/extra/tcp-port]]
         open?:   func [port [port!]][all [port/extra open? port/extra/tcp-port]]
         copy:    func [port [port!]][if port/data [copy port/data]]

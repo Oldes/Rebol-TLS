@@ -19,12 +19,17 @@ TLS-server-awake: func [
             info: query port [remote-ip remote-port]
             ;; Initialize a new TLS context for this client
             port/extra: new-TLS-context [
-                tcp-port: port                      ;; Underlying TCP port
-                tls-port: serv/parent               ;; Parent TLS port
-                server?:  true                      ;; Mark context as server side
-                state:   'CLIENT_HELLO              ;; Start handshake expecting ClientHello
-                version:  serv/extra/version        ;; Record negotiated TLS version
+                tcp-port:    port                   ;; Underlying TCP port
+                listen-port: serv/parent            ;; Listening TLS port
+                server?:     true                   ;; Mark context as server side
+                state:      'CLIENT_HELLO           ;; Start handshake expecting ClientHello
+                version:     serv/extra/version     ;; Record negotiated TLS version
             ]
+            ;; TLS port, which is given to the application, when the handshake is finished
+            port/extra/tls-port: make port! [scheme: 'tls]
+            port/extra/tls-port/extra: port/extra
+            port/extra/tls-port/spec/title: "TLS Server's client"
+            port/extra/tls-port/spec/ref: rejoin [tls:// info/remote-ip #":" info/remote-port]
             ;; Update port metadata for identification
             port/spec/title: "TLS Server's client"
             port/spec/ref: rejoin [tcp:// info/remote-ip #":" info/remote-port]
@@ -77,8 +82,18 @@ TLS-server-client-awake: function [
                             read TCP-port
                         ]
                         APPLICATION [
-                            ;; Report real application data to the parent
-                            TCP-port/parent/actor/On-Read TCP-port
+                            either ctx/handshake? [
+                                ;; Handshake is finished, report the new connection to the application
+                                ctx/handshake?: false
+                                ;; application data may be received together with client's FINISHED
+                                ctx/unread?: not empty? ctx/port-data
+                                append ctx/listen-port/state/accepted ctx/tls-port
+                                dispatch-event 'accept ctx/listen-port
+                            ][
+                                ;; Report real application data to the application
+                                ctx/tls-port/data: ctx/port-data
+                                dispatch-event 'read ctx/tls-port
+                            ]
                         ]
                     ]
                 ][
@@ -88,24 +103,34 @@ TLS-server-client-awake: function [
             ]
             ; on error:
             if ctx [ log-error ctx/error: error ]
-            ;dispatch-event 'error TLS-port
-            do-TLS-close TCP-port
+            close-server-client ctx
             return true
         ]
         wrote [
-            either ctx/protocol = 'APPLICATION [
-                TCP-port/parent/actor/On-Wrote TCP-port
-            ][
+            either ctx/handshake? [
                 read TCP-port
+            ][
+                dispatch-event 'wrote ctx/tls-port
             ]
             return false
         ]
         close [
-            do-TLS-close TCP-port
+            close-server-client ctx
             return true
         ]
     ]
     false
+]
+
+close-server-client: func [
+    ;; Closes the connection, or lets the application close it, if already accepted.
+    ctx [object!]
+][
+    either ctx/handshake? [
+        do-TLS-close ctx/tls-port
+    ][
+        dispatch-event 'close ctx/tls-port
+    ]
 ]
 
 prepare-server-hello: function [
@@ -245,7 +270,7 @@ prepare-server-certificate: function [
     change-state ctx 'CERTIFICATE
     with ctx [
         ; certificates are stored in the server (tpc's parent) settings
-        certificates: tls-port/state/certificates
+        certificates: listen-port/state/certificates
         length: 4 + length? certificates
         record: clear #{}
         binary/write record [
@@ -265,7 +290,7 @@ prepare-server-certificate: function [
                 ;; Get hash of handshake messages (Client Hello .. Certificate)
                 get-transcript-hash ctx 'CERTIFICATE
             ]
-            signature: rsa/sign/pss tls-port/state/private-key :to-sign
+            signature: rsa/sign/pss listen-port/state/private-key :to-sign
             ;?? signature
             length: 4 + length? signature
             binary/write clear record [
@@ -288,7 +313,7 @@ prepare-server-certificate: function [
 
             switch key-method [
                 ECDHE_RSA [
-                    spec: TCP-port/parent/state
+                    spec: listen-port/state
                     ;@@ TODO: make sure, that curve is supported by client!
                     curve: first spec/elliptic-curves
                     dh-key: ecdh/init none curve

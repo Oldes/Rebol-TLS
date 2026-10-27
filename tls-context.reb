@@ -13,6 +13,7 @@ TLS-context: context [
 
     tcp-port:
     tls-port:
+    listen-port:   ;listening TLS port (server side only)
     encrypt-port:
     decrypt-port: 
     sha256-port:   ;used for progressive checksum computations
@@ -29,6 +30,7 @@ TLS-context: context [
     port-data:   make binary! 32000 ;this holds received decrypted application data
     rest:        make binary! 8 ;packet may not be fully processed, this value is used to keep temporary leftover
     reading?:       false  ;if client is reading or writing data
+    unread?:        false  ;decrypted application data received, but not yet reported (server side)
     server?:        false  ;always FALSE now as we have just a client
     protocol:       none   ;current protocol state. One of: [HANDSHAKE APPLICATION ALERT]
     state:         'lookup ;current state in context of the protocol
