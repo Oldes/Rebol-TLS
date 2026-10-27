@@ -418,4 +418,33 @@ sys/make-scheme [
 	is? reduce [sizes  data == to binary! text] [[16384 3616] #(true)]
 ]
 
+
+
+group "decrypt-tls-record"
+
+;; A crypt-like port which never returns any data
+sys/make-scheme [
+	name:  'test-null
+	title: "Returns no data"
+	actor: [
+		open:   func [port][port]
+		write:  func [port data][port]
+		read:   func [port][none]
+		modify: func [port field value][true]
+		take:   func [port][none]
+	]
+]
+
+--test-- "failed decryption is reported in the context, not globally" [
+	unset 'critical-error
+	ctx: new-TLS-context [
+		crypt-method: 'AES-128-GCM
+		is-aead?:     true
+		remote-hs-IV: #{000000000000000000000000}
+		decrypt-port: open test-null://
+	]
+	data: decrypt-tls-record ctx append/dup copy #{} 0 40 23
+	is? reduce [data ctx/critical-error value? 'critical-error] [#(none) Bad_record_MAC #(false)]
+]
+
 summary

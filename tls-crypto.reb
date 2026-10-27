@@ -464,7 +464,7 @@ decrypt-tls-record: func [
         ++ seq-read
     ]
     ;; Return none if decryption failed, otherwise return decrypted data
-    unless data [ critical-error: 'Bad_record_MAC ]
+    unless data [ ctx/critical-error: 'Bad_record_MAC ]
     data
 ]
 
