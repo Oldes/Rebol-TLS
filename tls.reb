@@ -6,8 +6,8 @@ Rebol [
     Author: "Oldes"
     License: MIT ;= SPDX-License-Identifier
     Home:    https://github.com/Oldes/Rebol-TLS
-    Version: 0.12.0
-    Date:    30-Nov-2025
+    Version: 0.13.0
+    Date:    27-Oct-2026
 ]
 try [do "_: #(none)"] ;; backward compatibility
 #include %tls-context.reb
