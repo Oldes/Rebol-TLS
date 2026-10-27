@@ -812,4 +812,35 @@ key-share-of: func ["Makes key_share data" curve [word!] /local key data][
 	is? ctx/extensions/key_share 0#0017
 ]
 
+;; Returns a TLS1.2 ServerHello message body (without supported_versions) with the given random
+tls12-server-hello-msg: func ["Makes a TLS1.2 ServerHello message body" random [binary!] /local bin][
+	bin: binary/write make binary! 100 [
+		UI16      0#0303
+		BYTES     :random
+		UI8BYTES  #{}
+		UI16      0#C02F ;= TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		UI8       0
+		UI16BYTES #{}
+	]
+	head bin/buffer
+]
+random-with-end: func ["Makes server random ending with given bytes" tail-bytes [binary!]][
+	append append/dup copy #{} 1 32 - length? tail-bytes tail-bytes
+]
+
+--test-- "TLS1.2 ServerHello is accepted" [
+	ctx: client-after-hello
+	decode-server-hello ctx tls12-server-hello-msg random-with-end #{0102030405060708}
+	is? reduce [ctx/TLS13? ctx/critical-error] [#(none) #(none)]
+]
+
+--test-- "TLS1.2 ServerHello with TLS1.3 downgrade sentinel is refused" [
+	bad: copy []
+	foreach sentinel [#{444F574E47524401} #{444F574E47524400}][ ;= "DOWNGRD" + 01 (TLS1.2) or 00 (TLS1.1 and older)
+		e: try [decode-server-hello client-after-hello tls12-server-hello-msg random-with-end sentinel]
+		unless all [error? e  find form e "Illegal parameter"][append bad sentinel]
+	]
+	is? bad []
+]
+
 summary

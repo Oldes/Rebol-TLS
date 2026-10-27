@@ -656,6 +656,15 @@ decode-server-hello: function [
                 log-more ["Elyptic curve^[[1m" extensions/key_share/1 "^[[22mdata (pre-secret):" pre-secret]
                 TLS-key-expansion ctx
             ]
+            'else [
+                ;; Server uses older TLS version, although client offered TLS1.3, so check
+                ;; the downgrade protection sentinel ("DOWNGRD" + 01 or 00) in the server random
+                ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
+                if find [#{444F574E47524401} #{444F574E47524400}] copy skip remote-random 24 [
+                    log-error "TLS1.3 downgrade detected!"
+                    cause-TLS-error 'Illegal_parameter
+                ]
+            ]
         ]
         false ;= no error
     ]
