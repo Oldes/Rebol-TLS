@@ -456,4 +456,17 @@ group "TLS-init-cipher-suite"
 	is? TLS-init-cipher-suite ctx false
 ]
 
+--test-- "client advertises only cipher suites it can use" [
+	bad: copy []
+	bin: binary suported-cipher-suites-binary
+	while [not tail? bin/buffer][
+		id: binary/read bin 'UI16
+		unless id == 0#00FF [ ;= TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+			ctx: new-TLS-context [cipher-suite: id]
+			unless TLS-init-cipher-suite ctx [append bad skip to binary! id 6]
+		]
+	]
+	is? bad []
+]
+
 summary

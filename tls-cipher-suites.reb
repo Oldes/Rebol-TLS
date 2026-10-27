@@ -106,6 +106,11 @@ suported-cipher-suites-binary: rejoin [
 ]
 ;suported-cipher-suites-binary: TLS12-cipher-suites
 suported-cipher-suites: decode-list *Cipher-suite :suported-cipher-suites-binary _
+;; Advertise only cipher suites, which are known (`decode-list` skips the unknown ones)
+suported-cipher-suites-binary: make binary! 2 * length? suported-cipher-suites
+foreach suite suported-cipher-suites [
+    binary/write tail suported-cipher-suites-binary [UI16 :*Cipher-suite/:suite]
+]
 
 supported-signature-algorithms: #{
 0403 ; ecdsa_secp256r1_sha256
