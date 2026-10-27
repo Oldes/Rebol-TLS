@@ -673,4 +673,38 @@ server/awake: func [event [event!] /local client][
 	is? reduce [events ctx/unread?] reduce [reduce ['read to binary! "GET / HTTP/1.1^M^/^M^/"] false]
 ]
 
+
+
+group "prepare-client-hello"
+
+;; Returns names of extensions sent in ClientHello to the given host
+client-hello-extensions: func [
+	"Prepares ClientHello and returns its extensions"
+	host [string! tuple!]
+	/local ctx data
+][
+	ctx: new-TLS-context [tcp-port: make port! [scheme: 'tcp host: none port: 443]]
+	ctx/tcp-port/spec/host: host
+	TLS-init-context ctx
+	prepare-client-hello ctx
+	data: binary/read binary head ctx/out/buffer [
+		UI8 UI16 UI16 UI8 UI24 ;= record and handshake header
+		UI16 BYTES 32 UI8BYTES UI16BYTES UI8BYTES
+		UI16BYTES              ;= extensions
+	]
+	words-of decode-extensions new-TLS-context [server?: true] last data
+]
+
+--test-- "server_name is sent for a host name" [
+	did find client-hello-extensions "localhost" 'server_name
+]
+
+--test-- "server_name is not sent for an IP address" [
+	is? collect [
+		foreach host ["127.0.0.1" "[::1]" 127.0.0.1][
+			if find client-hello-extensions host 'server_name [keep host]
+		]
+	] []
+]
+
 summary

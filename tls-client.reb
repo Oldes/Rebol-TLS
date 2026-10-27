@@ -351,6 +351,18 @@ TLS-read-data: function [
     return true
 ]
 
+ip-address?: function/with [
+    ;; Returns TRUE if the host is a literal IPv4 or IPv6 address.
+    host [any-string! tuple!]
+][
+    to logic! any [
+        tuple? host
+        find host #":"                                ;= IPv6 (host names can't contain colons)
+        parse host [1 3 digit 3 [#"." 1 3 digit]]     ;= IPv4
+    ]
+][
+    digit: charset "0123456789"
+]
 
 prepare-client-hello: function [
     ;; Prepares CLIENT_HELLO message with supported cipher suites
@@ -363,9 +375,11 @@ prepare-client-hello: function [
 
         ;- Server Name Indication (extension)
         ;  https://tools.ietf.org/html/rfc6066#section-3
+        ;  (literal IPv4 and IPv6 addresses are not permitted)
         if all [
             ctx/tcp-port
             host-name: ctx/tcp-port/spec/host
+            not ip-address? host-name
         ][
             host-name: to binary! host-name
             length-name:  length? host-name
