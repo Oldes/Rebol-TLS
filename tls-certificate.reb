@@ -131,7 +131,7 @@ decode-certificates: function [
     ][
         check-certificate-host ctx first ctx/server-certs form host
     ]
-    
+
     ;log-debug ["Received" length? ctx/server-certs "server certificates."]
     ;? ctx/server-certs
     try/with [
@@ -186,25 +186,47 @@ decode-certificate-verify: function [
        signature-type: UI16
        signature: UI16BYTES
     ]
-    ;@@TODO: certificate validation also for other types!
-    log-debug ["Verify certificate using type:^[[1m" *SignatureScheme/name signature-type]
-    ;?? signature
-    ;?? ctx/context-messages
-    if signature-type == 0#0804 [
-        either system/version < 3.19.7 [
-            ;@@ TEMPORARY FIX!
-            log-error "Current Rebol version is not able to validate this certificate!"
-        ][
-            to-sign: rejoin [
-                server-certificate-verify-context
-                ;; Get hash of handshake messages (Client Hello .. Certificate)
-                get-transcript-hash ctx 'CERTIFICATE
-            ]
-            key: rsa-init ctx/pub-key ctx/pub-exp
-            unless rsa/verify/pss :key :to-sign :signature [
-                log-error "Certificate validation failed!"
+    scheme: *SignatureScheme/name signature-type
+    log-debug ["Verify certificate using type:^[[1m" scheme]
+    unless verify-certificates [exit]
+
+    to-sign: rejoin [
+        server-certificate-verify-context
+        ;; Get hash of handshake messages (Client Hello .. Certificate)
+        get-transcript-hash ctx 'CERTIFICATE
+    ]
+    supported?: true
+    valid?: switch/default scheme [
+        rsa_pss_rsae_sha256
+        rsa_pss_rsae_sha384
+        rsa_pss_rsae_sha512 [
+            all [
+                binary? ctx/pub-exp ;= RSA public key
+                key: rsa-init ctx/pub-key ctx/pub-exp
+                rsa/verify/pss/hash :key :to-sign :signature signature-hash-methods/:scheme
             ]
         ]
+        ecdsa_secp256r1_sha256
+        ecdsa_secp384r1_sha384
+        ecdsa_secp521r1_sha512 [
+            all [
+                ;; in TLS1.3 the key's curve must be the one of the signature scheme
+                ctx/pub-exp = select [
+                    ecdsa_secp256r1_sha256 secp256r1
+                    ecdsa_secp384r1_sha384 secp384r1
+                    ecdsa_secp521r1_sha512 secp521r1
+                ] scheme
+                ecdsa/verify/curve ctx/pub-key checksum to-sign signature-hash-methods/:scheme signature ctx/pub-exp
+            ]
+        ]
+    ][
+        ;@@ TODO: ed25519, ed448, rsa_pss_pss_*
+        supported?: false
+    ]
+    unless valid? [
+        certificate-failure ctx 'Decrypt_error either supported? [
+            ["CertificateVerify signature is not valid (" scheme ")"]
+        ][  ["Unsupported CertificateVerify signature scheme:" any [scheme signature-type]] ]
     ]
 ]
 

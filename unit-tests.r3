@@ -953,4 +953,68 @@ expired-der: select decode 'pkix read %certs/Expired.crt 'binary ;= valid only u
 	is? ctx/certificate-errors none
 ]
 
+;; Returns a client context after receiving server's certificate (certs/MyCertificate.crt)
+cv-ctx: func ["Makes a client context waiting for CertificateVerify" /local ctx][
+	ctx: decode-certs-with 'log reduce [der]
+	ctx/hash-type: 'SHA256
+	ctx/context-messages: copy/deep reduce ['CLIENT_HELLO #{01000000} 'SERVER_HELLO #{02000000} 'CERTIFICATE #{0B000000}]
+	ctx
+]
+;; Data signed in CertificateVerify
+cv-to-sign: func ["Returns data signed in CertificateVerify" ctx [object!]][
+	rejoin [server-certificate-verify-context get-transcript-hash ctx 'CERTIFICATE]
+]
+;; CertificateVerify message body
+cv-msg: func ["Makes CertificateVerify message body" scheme [integer!] signature [binary!] /local bin][
+	bin: binary/write make binary! 600 [UI16 :scheme UI16BYTES :signature]
+	head bin/buffer
+]
+rsa-private: load %certs/MyKey.key
+
+--test-- "valid RSA-PSS CertificateVerify is accepted" [
+	ctx: cv-ctx
+	tls-config [verify: error]
+	e: try [decode-certificate-verify ctx cv-msg 0#0804 rsa/sign/pss rsa-private cv-to-sign ctx]
+	tls-config [verify: log]
+	is? reduce [error? e ctx/certificate-errors] [#(false) #(none)]
+]
+
+--test-- "invalid RSA-PSS CertificateVerify is refused with `verify: error`" [
+	ctx: cv-ctx
+	signature: rsa/sign/pss rsa-private cv-to-sign ctx
+	append last ctx/context-messages #{00} ;= signature is not for this transcript
+	tls-config [verify: error]
+	e: try [decode-certificate-verify ctx cv-msg 0#0804 signature]
+	tls-config [verify: log]
+	did all [error? e  find form e "Decrypt error"]
+]
+
+--test-- "invalid CertificateVerify is reported by default" [
+	ctx: cv-ctx
+	decode-certificate-verify ctx cv-msg 0#0804 #{0102030405}
+	is? length? ctx/certificate-errors 1
+]
+
+--test-- "ECDSA CertificateVerify is verified" [
+	ctx: cv-ctx
+	key: ecdh/init none 'secp256r1
+	signature: ecdsa/sign key checksum cv-to-sign ctx 'sha256
+	ctx/pub-key: ecdh/public key ;= (ecdsa/sign generates new key pair)
+	ctx/pub-exp: 'secp256r1
+	tls-config [verify: error]
+	valid: try [decode-certificate-verify ctx cv-msg 0#0403 signature]
+	append last ctx/context-messages #{00}
+	invalid: try [decode-certificate-verify ctx cv-msg 0#0403 signature]
+	tls-config [verify: log]
+	is? reduce [error? valid  did all [error? invalid find form invalid "Decrypt error"]] [#(false) #(true)]
+]
+
+--test-- "CertificateVerify with unsupported signature scheme is refused with `verify: error`" [
+	ctx: cv-ctx
+	tls-config [verify: error]
+	e: try [decode-certificate-verify ctx cv-msg 0#0807 #{0102030405}] ;= ed25519
+	tls-config [verify: log]
+	did all [error? e  find form e "Decrypt error"]
+]
+
 summary
