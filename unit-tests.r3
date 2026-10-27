@@ -107,4 +107,50 @@ group "prepare-server-hello"
 	is? count-of head ctx/out/buffer #{FF01000100} 1
 ]
 
+
+;; Returns names of extensions sent in the ServerHello record in the output buffer
+server-hello-extensions: func [
+	"Decodes extensions of the ServerHello record"
+	ctx [object!]
+	/local data
+][
+	data: binary/read binary head ctx/out/buffer [
+		UI8 UI16 UI16 ;= record header
+		UI8 UI24      ;= handshake header
+		UI16 BYTES 32 UI8BYTES UI16 UI8
+		UI16BYTES     ;= extensions
+	]
+	sort words-of decode-extensions make TLS-context [] last data
+]
+
+client-key: ecdh/public ecdh/init none 'curve25519
+
+--test-- "TLS1.2 echoes point formats and renegotiation info" [
+	ctx: make TLS-context [
+		server?:      true
+		session-id:   #{}
+		cipher-suite: 0#C02F
+		extensions:   #[supported_point_formats: #{03000102} renegotiation_info: #{00}]
+	]
+	prepare-server-hello ctx
+	is? server-hello-extensions ctx [renegotiation_info supported_point_formats]
+]
+
+--test-- "TLS1.3 sends only supported_versions and key_share" [
+	ctx: make TLS-context [
+		server?:      true
+		session-id:   #{}
+		cipher-suite: 0#1301
+		extensions:   compose/deep #[
+			supported_versions:      [0#0304 0#0303]
+			key_share:               [curve25519 (client-key)]
+			supported_point_formats: #{03000102}
+			renegotiation_info:      #{00}
+		]
+	]
+	prepare-server-hello ctx
+	is? server-hello-extensions ctx [key_share supported_versions]
+]
+
+
 summary

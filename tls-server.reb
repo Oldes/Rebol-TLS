@@ -165,17 +165,19 @@ prepare-server-hello: function [
         ;?? session-id
         ;?? extensions
         server-extensions: make binary! 16 ;; must be a fresh binary per call
-        if find extensions 'ec_point_formats [
-            append server-extensions #{000B000403000102}
-        ]
-        if find extensions 'renegotiation_info [
-            append server-extensions #{FF01000100}
-        ]
-
-        if TLS13? [
+        either TLS13? [
+            ;; TLS1.3 ServerHello may contain only supported_versions, key_share and pre_shared_key
+            ;; https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
             append server-extensions #{002B 0002 0304}
             if key_share [
                 encode-extension server-extensions 51 key_share 
+            ]
+        ][
+            if find extensions 'supported_point_formats [
+                append server-extensions #{000B000403000102}
+            ]
+            if find extensions 'renegotiation_info [
+                append server-extensions #{FF01000100}
             ]
         ]
         ;?? server-extensions
