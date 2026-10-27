@@ -70,7 +70,7 @@ _log-debug: func[msg][
     if block? msg [msg: reform msg]
     print rejoin [" ^[[33m[TLS] ^[[0;32m" msg "^[[0m"]
 ]
-_log-----: :print-horizontal-line
+_log-----: :print-hline
 
 log-error: log-info: log-more: log-debug: log-----: none
 

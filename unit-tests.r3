@@ -79,7 +79,6 @@ summary: does [
 ;; Setup: load the TLS sources in the same order as `tls.reb` includes them
 ;;=============================================================================
 
-extend system/contexts/lib 'print-horizontal-line :print-hline ;; backward compatibility
 unset in system/schemes 'tls
 tls: do %build/prot-tls.reb
 ;; make the module's internal functions visible to the tests

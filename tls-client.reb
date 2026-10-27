@@ -108,7 +108,6 @@ TLS-client-awake: function [
                                     ][
                                         change-state ctx ctx/protocol: 'APPLICATION
                                         dispatch-event 'connect ctx/TLS-port
-                                        ;print-horizontal-line
                                         return true ;= wake up
                                     ]
                                 ]

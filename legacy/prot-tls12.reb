@@ -381,7 +381,7 @@ _log-debug: func[msg][
 	if block? msg [msg: reform msg]
 	print rejoin [" ^[[33m[TLS] ^[[0;32m" msg "^[[0m"]
 ]
-_log-----: does [print-horizontal-line]
+_log-----: does [print-hline]
 
 log-error: log-info: log-more: log-debug: log-----: none
 
@@ -2126,7 +2126,6 @@ TLS-client-awake: function [event [event!]][
 							FINISHED [
 								change-state ctx ctx/protocol: 'APPLICATION
 								send-event 'connect TLS-port
-								;print-horizontal-line
 								return true ;= wake up
 							]
 						]

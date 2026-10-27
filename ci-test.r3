@@ -31,14 +31,14 @@ foreach url [
 	https://statsapi.mlb.com/api/v1/gameTypes ;= use TLS1.2 with rss_pss signature algorithm
 	https://facebook.com ;= handshake fragment is received in multiple chunks
 ][
-	print-horizontal-line
+	print-hline
 	print [as-yellow "Trying to read:" as-green url]
-	print-horizontal-line
+	print-hline
 	try/with [
 		data: read url
-		print-horizontal-line
+		print-hline
 		? data
-		print-horizontal-line
+		print-hline
 		print "^/^/"
 	][
 		sys/log/error 'TEST err: copy system/state/last-error
