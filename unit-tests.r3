@@ -379,6 +379,16 @@ der: select decode 'pkix read %certs/MyCertificate.crt 'binary
 	is? length? ctx/server-certs 2
 ]
 
+--test-- "certificate which cannot be decoded is refused" [
+	entries: encode-certificate-entries [#{0102030405}] ;= `decode 'CRT` fails on it
+	ctx: new-TLS-context [TLS13?: true state-prev: 'ENCRYPTED_EXTENSIONS]
+	msg: binary/write make binary! 100 [UI8 0 UI24BYTES :entries]
+	tls-verbosity 2 ;= the error was raised only with logging enabled
+	e: try [decode-certificates ctx msg/buffer]
+	tls-verbosity 0
+	all [error? e  did find form e "Bad certificate"]
+]
+
 
 
 group "do-TLS-write"

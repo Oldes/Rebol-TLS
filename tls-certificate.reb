@@ -27,7 +27,11 @@ decode-certificates: function [
            cert-extensions: binary/read msg 'UI16BYTES
            ;? cert-extensions
         ]
-        append ctx/server-certs cert: attempt [decode 'CRT cert]
+        unless cert: attempt [decode 'CRT cert] [
+            log-error "Failed to decode a certificate!"
+            cause-TLS-error 'Bad_certificate
+        ]
+        append ctx/server-certs cert
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
     ]
     ;log-debug ["Received" length? ctx/server-certs "server certificates."]
