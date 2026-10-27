@@ -52,6 +52,19 @@ decode-certificates: function [
     ;@@TODO: certificate validation
 ]
 
+encode-certificate-entries: function [
+    ;; Encodes DER certificates as a TLS1.3 certificate_list (each CertificateEntry has its own extensions).
+    ders [block!]
+][
+    bin: binary 4000
+    foreach der ders [
+        binary/write bin [
+            UI24BYTES :der
+            UI16      0    ;= CertificateEntry extensions (none)
+        ]
+    ]
+    bin/buffer
+]
 
 decode-certificate-verify: function [
     ;; Parses and validates a TLS CERTIFICATE_VERIFY handshake message using the corresponding certificate and signature.

@@ -8,7 +8,7 @@ Rebol [
 do-TLS-open: func [
     ;; Handles the opening/init state for a TLS port, including TLS context creation and certificate loading.
     port [port!]
-    /local spec conn config certs bin der key
+    /local spec conn config certs ders key
 ][
     log-debug "OPEN"
     if port/state [return port]
@@ -60,18 +60,15 @@ do-TLS-open: func [
         if config: select spec 'config [
             certs: any [select config 'certificates []]
             unless block? certs [certs: to block! certs]
-            bin: binary 4000
-            ;binary/write bin reduce ['UI8 length? certs]
+            ders: copy []
             foreach file certs [
                 try/with [
-                    der: select decode 'pkix read file 'binary
-                    binary/write bin [UI24BYTES :der]
+                    append ders select decode 'pkix read file 'binary
                 ][
                     log-error ["Failed to import certificate:" file]
                 ]
             ]
-            binary/write bin [UI16 0] ;= Certificate extensions (none)
-            port/state/certificates: bin/buffer
+            port/state/certificates: encode-certificate-entries ders
             ;?? port/state/certificates
 
             if key: select config 'private-key [

@@ -362,4 +362,23 @@ ecdsa-key-exchange: func [
 	all [error? e  did find form e "Decode error"]
 ]
 
+
+
+group "Certificates"
+
+der: select decode 'pkix read %certs/MyCertificate.crt 'binary
+
+--test-- "each certificate entry has its own extensions" [
+	is? encode-certificate-entries [#{AA} #{BBBB}] #{000001AA0000000002BBBB0000}
+]
+
+--test-- "client decodes certificate chain sent by server" [
+	entries: encode-certificate-entries reduce [der der]
+	ctx: new-TLS-context [TLS13?: true state-prev: 'ENCRYPTED_EXTENSIONS]
+	;; Certificate message body (as in prepare-server-certificate)
+	msg: binary/write make binary! 5000 [UI8 0 UI24BYTES :entries]
+	decode-certificates ctx msg/buffer
+	is? length? ctx/server-certs 2
+]
+
 summary
