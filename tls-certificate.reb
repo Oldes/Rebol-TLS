@@ -4,6 +4,45 @@ Rebol [
     license: 'MIT ;= SPDX-License-Identifier
 ]
 
+;; How to handle failed certificate checks:
+;;  'log   - failures are only logged (and collected in ctx/certificate-errors)
+;;  'error - failures are TLS errors
+;;  none   - certificates are not checked
+;; Set using: system/schemes/tls/config [verify: error]
+verify-certificates: 'log
+
+certificate-failure: func [
+    ;; Reports a failed certificate check (logged, or raised as a TLS error with the given alert).
+    ctx   [object!]
+    alert [word!]
+    msg   [block! string!]
+][
+    if block? msg [msg: reform msg]
+    log-error msg
+    append any [ctx/certificate-errors ctx/certificate-errors: copy []] msg
+    if verify-certificates = 'error [cause-TLS-error alert]
+]
+
+check-certificate-dates: func [
+    ;; Checks that the certificate is valid now (or at the given time).
+    ctx  [object!]
+    cert [object!]
+    /at time [date!] "Time of the check (default: now)"
+][
+    time: any [time now/utc]
+    unless all [
+        date? cert/valid-from
+        date? cert/valid-to
+        cert/valid-from <= time
+        time <= cert/valid-to
+    ][
+        certificate-failure ctx 'Certificate_expired [
+            "Certificate is not valid at" time "(valid from" cert/valid-from "to" cert/valid-to
+            "subject:" mold/flat cert/subject ")"
+        ]
+    ]
+]
+
 decode-certificates: function [
     ;; Parses a TLS CERTIFICATE handshake message and extracts and verifies server certificate(s).
     ctx [object!]
@@ -33,6 +72,7 @@ decode-certificates: function [
         ]
         append ctx/server-certs cert
         log-more ["Certificate subject:^[[1m" mold/only/flat cert/subject]
+        if verify-certificates [check-certificate-dates ctx cert]
     ]
     ;log-debug ["Received" length? ctx/server-certs "server certificates."]
     ;? ctx/server-certs

@@ -281,6 +281,16 @@ tls-config: func [
             [
                 tls-verbosity :value
             ]
+
+            verify
+            verify-certificates
+            [
+                ;; How to handle failed certificate checks: log, error or none
+                verify-certificates: switch/default :value [
+                    log [quote log]
+                    none false off #(none) #(false) [none]
+                ][  quote error ]
+            ]
         ]
     ]
 ]

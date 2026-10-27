@@ -87,6 +87,7 @@ TLS-context: context [
 
     session-id: none        ; https://hpbn.co/transport-layer-security-tls/#tls-session-resumption
     server-certs: copy []
+    certificate-errors: none ;; failed certificate checks (when only logged, see `verify-certificates`)
     extensions:   copy []
     context-messages: []
 

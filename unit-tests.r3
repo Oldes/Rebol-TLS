@@ -843,4 +843,54 @@ random-with-end: func ["Makes server random ending with given bytes" tail-bytes 
 	is? bad []
 ]
 
+
+
+group "Certificate validation"
+
+;; Returns a client context after decoding Certificate message with given certificates
+;; (with the given `verify` setting)
+decode-certs-with: func [
+	"Decodes certificates using given verify mode"
+	mode
+	ders [block!]
+	/local ctx entries msg
+][
+	tls-config compose [verify: (mode)]
+	entries: encode-certificate-entries ders
+	ctx: new-TLS-context [TLS13?: true state-prev: 'ENCRYPTED_EXTENSIONS]
+	msg: binary/write make binary! 5000 [UI8 0 UI24BYTES :entries]
+	decode-certificates ctx msg/buffer
+	ctx
+]
+expired-der: der ;= certs/MyCertificate.crt is valid only until 14-Feb-2023
+
+--test-- "certificate validity is checked at the given time" [
+	cert: object [valid-from: 1-Jan-2020/0:00 valid-to: 1-Jan-2120/0:00 subject: [commonName: "test"]]
+	ctx: new-TLS-context []
+	tls-config [verify: log]
+	check-certificate-dates/at ctx cert 1-Jan-2030/0:00
+	ok?: none? ctx/certificate-errors
+	check-certificate-dates/at ctx cert 1-Jan-2121/0:00
+	check-certificate-dates/at ctx cert 1-Jan-2019/0:00
+	is? reduce [ok? length? ctx/certificate-errors] [#(true) 2]
+]
+
+--test-- "expired certificate is only logged by default" [
+	tls-config [verify: log]
+	ctx: decode-certs-with 'log reduce [expired-der]
+	is? reduce [length? ctx/server-certs  length? ctx/certificate-errors] [1 1]
+]
+
+--test-- "expired certificate is refused with `verify: error`" [
+	e: try [decode-certs-with 'error reduce [expired-der]]
+	tls-config [verify: log]
+	all [error? e  did find form e "Certificate expired"]
+]
+
+--test-- "certificate checks are skipped with `verify: none`" [
+	ctx: decode-certs-with 'none reduce [expired-der]
+	tls-config [verify: log]
+	is? ctx/certificate-errors none
+]
+
 summary
