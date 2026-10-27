@@ -79,9 +79,11 @@ summary: does [
 ;; Setup: load the TLS sources in the same order as `tls.reb` includes them
 ;;=============================================================================
 
-print-horizontal-line: :print-hline
+extend system/contexts/lib 'print-horizontal-line :print-hline ;; backward compatibility
 unset in system/schemes 'tls
-do %build/prot-tls.reb
+tls: do %build/prot-tls.reb
+;; make the module's internal functions visible to the tests
+resolve/extend/all system/contexts/user tls
 
 ;; Counts non-overlapping occurrences of a pattern in a series
 count-of: func ["Counts occurrences of a value in a series" series pattern /local n][

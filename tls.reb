@@ -2,7 +2,7 @@ Rebol [
     Title:  "TLS Protocol"
     File:   %tls.reb
     Name:    'tls
-    Yype:    'module
+    Type:    'module
     Author: "Oldes"
     License: MIT ;= SPDX-License-Identifier
     Home:    https://github.com/Oldes/Rebol-TLS
