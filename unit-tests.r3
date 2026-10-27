@@ -479,6 +479,8 @@ group "decode-client-hello"
 client-hello: func [
 	"Makes a ClientHello message body"
 	tls13? [logic!]
+	/suites "Offered cipher suites (default: TLS_AES_128_GCM_SHA256 and a TLS1.2 one)"
+	 list [binary!]
 	/local ext key bin
 ][
 	ext: make binary! 100
@@ -491,11 +493,11 @@ client-hello: func [
 			UI16 0#001D  UI16BYTES :key
 		]
 	]
-	bin: binary/write make binary! 200 [
+	bin: binary/write make binary! 200 compose [
 		UI16      0#0303
 		BYTES     #{0000000000000000000000000000000000000000000000000000000000000000}
 		UI8BYTES  #{}
-		UI16BYTES #{1301C02F}  ;= TLS_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		UI16BYTES (any [list #{1301C02F}])
 		UI8BYTES  #{00}
 		UI16BYTES :ext
 	]
@@ -512,6 +514,18 @@ client-hello: func [
 	ctx: new-TLS-context [server?: true]
 	e: try [decode-client-hello ctx client-hello false]
 	all [error? e  did find form e "Protocol version"]
+]
+
+--test-- "server chooses TLS1.3 cipher suite for TLS1.3 session" [
+	ctx: new-TLS-context [server?: true]
+	decode-client-hello ctx client-hello/suites true #{C02F1301} ;= TLS1.2 suite preferred by client
+	is? ctx/cipher-suite 0#1301
+]
+
+--test-- "TLS1.3 ClientHello without TLS1.3 cipher suite is refused" [
+	ctx: new-TLS-context [server?: true]
+	e: try [decode-client-hello ctx client-hello/suites true #{C02F}]
+	all [error? e  did find form e "Handshake failure"]
 ]
 
 summary

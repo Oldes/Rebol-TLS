@@ -395,10 +395,15 @@ decode-client-hello: function [
         log-debug ["Client session:" session-id]
     ]
 
+    ;; Choose the first cipher suite (in the client's preference order), which is supported
+    ;; and which can be used with TLS1.3 (TLS1.3 cipher suites are 0x13xx)
     client-cipher-suites: decode-list *Cipher-suite :cipher-suites _
-    ?? client-cipher-suites
+    ;?? client-cipher-suites
     foreach cipher client-cipher-suites [
-        if find suported-cipher-suites cipher [
+        if all [
+            find suported-cipher-suites cipher
+            0#1300 == (0#FF00 and *Cipher-suite/:cipher)
+        ][
             ; store as an integer
             ?? cipher
             ctx/cipher-suite: *Cipher-suite/:cipher
