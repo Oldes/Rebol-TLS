@@ -591,6 +591,7 @@ server-events: copy []
 close-on-wrote?: true
 client-info: none
 use-mode?: false
+send-close-notify?: false
 server/awake: func [event [event!] /local client][
 	append server-events event/type
 	if event/type = 'accept [
@@ -602,9 +603,19 @@ server/awake: func [event [event!] /local client][
 			port: event/port
 			switch event/type [
 				read [
-					either find port/data #{0D0A0D0A} [
-						write port "HTTP/1.1 200 OK^M^/Content-Length: 5^M^/Connection: close^M^/^M^/Hello"
-					][	read port ]
+					case [
+						not find port/data #{0D0A0D0A} [read port]
+						send-close-notify? [
+							;; response without Content-Length followed by close_notify alert (like GitHub)
+							binary/init port/extra/out none
+							prepare-application-data port/extra to binary! "HTTP/1.1 200 OK^M^/Connection: close^M^/^M^/Hello"
+							prepare-alert-close-notify port/extra
+							do-TCP-write port/extra
+						]
+						'else [
+							write port "HTTP/1.1 200 OK^M^/Content-Length: 5^M^/Connection: close^M^/^M^/Hello"
+						]
+					]
 				]
 				wrote [either close-on-wrote? [close port][read port]] ;= keep-alive like
 				close [append server-events 'client-close  close port]
@@ -656,6 +667,13 @@ server/awake: func [event [event!] /local client][
 	tls-config [verify: error]
 	result: attempt [to string! read https://localhost:18436/]
 	tls-config [verify: log]
+	is? result "Hello"
+]
+
+--test-- "close_notify alert is not part of received data" [
+	send-close-notify?: true
+	result: attempt [to string! read https://localhost:18436/]
+	send-close-notify?: false
 	is? result "Hello"
 ]
 

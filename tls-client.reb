@@ -227,7 +227,8 @@ TLS-read-data: function [
                     log-debug ["Inner type:^[[1m" type]
                 ]
             ]
-            append ctx/port-data data
+            ;; only handshake and application data are collected (ALERT is processed below)
+            if find [22 23] type [append ctx/port-data data]
         ]
 
         *protocol-type/assert type
